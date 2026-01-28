@@ -15,15 +15,19 @@ import swapIcon from "../assets/icons/light_mode/swap_horiz.svg";
 import logoutIcon from "../assets/icons/light_mode/move_item.svg";
 
 // --- 2. Blue Icons Import ---
-import menuBlue from "../assets/icons/blue/menu.svg"; // Mapped to Menu Open (Hamburger)
-import menuOpenBlue from "../assets/icons/blue/menu_open.svg"; // Mapped to Menu Close (Arrow)
+import menuBlue from "../assets/icons/blue/menu.svg";
+import menuOpenBlue from "../assets/icons/blue/menu_open.svg";
 import personBlue from "../assets/icons/blue/person.svg";
 import arrowDownBlue from "../assets/icons/blue/keyboard_arrow_down.svg";
 import keyboardBlue from "../assets/icons/blue/keyboard.svg";
 import groupsBlue from "../assets/icons/blue/groups.svg";
-import uploadBlue from "../assets/icons/blue/upload.svg"; // Mapped to Export
-import downloadBlue from "../assets/icons/blue/download.svg"; // Mapped to Import
+import uploadBlue from "../assets/icons/blue/upload.svg";
+import downloadBlue from "../assets/icons/blue/download.svg";
 import darkModeBlue from "../assets/icons/blue/dark_mode.svg";
+
+// --- 3. Component Imports ---
+// FIX: Added 'type' keyword for PengisianDataVariables
+import PengisianDataDiri, { type PengisianDataVariables } from "./PengisianDataDiri";
 
 // --- Helper Component for Sidebar Items ---
 interface SidebarItemProps {
@@ -31,6 +35,7 @@ interface SidebarItemProps {
   defaultIcon: string;
   blueIcon: string;
   isSidebarOpen: boolean;
+  isSelected?: boolean; // New Prop: For active state
   onClick?: () => void;
 }
 
@@ -39,24 +44,32 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   defaultIcon,
   blueIcon,
   isSidebarOpen,
+  isSelected = false,
   onClick,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Determine active styles: If selected OR hovered, show blue icon & gray bg
+  const isActive = isSelected || isHovered;
 
   return (
     <div
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-2 rounded-lg cursor-pointer text-black transition-colors"
+      className={`flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer transition-colors ${
+        isActive ? "bg-gray-2 text-black" : "text-black hover:bg-gray-2"
+      }`}
     >
       <img
-        src={isHovered ? blueIcon : defaultIcon}
+        src={isActive ? blueIcon : defaultIcon}
         alt={label}
-        className="shrink-0 w-6 h-6" // Fixed size to prevent layout shifts
+        className="shrink-0 w-6 h-6"
       />
       <span
-        className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarOpen ? "opacity-100" : "opacity-0"}`}
+        className={`whitespace-nowrap transition-opacity duration-200 ${
+          isSidebarOpen ? "opacity-100" : "opacity-0"
+        }`}
       >
         {label}
       </span>
@@ -64,16 +77,37 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
+// --- Mock Content Components (PengisianData removed as it is now imported) ---
+const DaftarPesertaContent = () => (
+  <h2 className="text-2xl font-bold">Konten Daftar Peserta</h2>
+);
+const ExportDataContent = () => (
+  <h2 className="text-2xl font-bold">Konten Export Data</h2>
+);
+const ImportDataContent = () => (
+  <h2 className="text-2xl font-bold">Konten Import Data</h2>
+);
+
 const AdminDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // 1. State for Selected Feature (String)
+  // Options: 'pengisian', 'peserta', 'export', 'import'
+  const [selectedFeature, setSelectedFeature] = useState<string>("pengisian");
+
+  // 2. State for Dark Mode Toggle (Boolean)
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // 3. State for Pengisian Data (Phase 1 Result)
+  const [pengisianData, setPengisianData] =
+    useState<PengisianDataVariables | null>(null);
 
   // State for Header Icons Hover
   const [hoverMenu, setHoverMenu] = useState(false);
   const [hoverPerson, setHoverPerson] = useState(false);
   const [hoverArrow, setHoverArrow] = useState(false);
 
-  // Ref for the dropdown menu
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,11 +129,33 @@ const AdminDashboard: React.FC = () => {
     console.log("Navigate to Profile");
   };
 
+  // Handler for Pengisian Data Next Step
+  const handlePengisianNext = (data: PengisianDataVariables) => {
+    console.log("Phase 1 Data Received:", data);
+    setPengisianData(data);
+    // Future: Logic to switch to Phase 2 (Questions)
+  };
+
+  // Helper to render content based on selection
+  const renderContent = () => {
+    switch (selectedFeature) {
+      case "pengisian":
+        return <PengisianDataDiri onNext={handlePengisianNext} />;
+      case "peserta":
+        return <DaftarPesertaContent />;
+      case "export":
+        return <ExportDataContent />;
+      case "import":
+        return <ImportDataContent />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-full font-sans overflow-hidden bg-white text-black">
-      {/* --- 1. Top Navbar (10% Height) --- */}
+      {/* --- 1. Top Navbar --- */}
       <header className="h-[10%] w-full bg-gray-5 border-b border-gray-6 flex items-center justify-between px-6 shrink-0 z-20 relative">
-        {/* Left: Brand & Sidebar Toggle */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -108,8 +164,6 @@ const AdminDashboard: React.FC = () => {
             className="p-2 hover:bg-gray-2 rounded-lg transition-colors focus:outline-none"
           >
             <img
-              // Logic: If sidebar is open (showing close icon), hover shows blue close icon (menuOpenBlue).
-              // If sidebar is closed (showing open icon), hover shows blue open icon (menuBlue).
               src={
                 isSidebarOpen
                   ? hoverMenu
@@ -126,9 +180,7 @@ const AdminDashboard: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-wide">MMPI</h1>
         </div>
 
-        {/* Right: User Profile & Dropdown */}
-        <div className="flex items-center">
-          {/* 1. Profile Icon */}
+        <div className="flex items-center gap-2">
           <button
             onClick={handleProfileClick}
             onMouseEnter={() => setHoverPerson(true)}
@@ -143,7 +195,6 @@ const AdminDashboard: React.FC = () => {
             />
           </button>
 
-          {/* 2. Dropdown Trigger */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -162,10 +213,8 @@ const AdminDashboard: React.FC = () => {
               />
             </button>
 
-            {/* Dropdown Menu */}
             {isDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-6 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                {/* Option 1: Ganti Akun */}
                 <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black">
                   <img
                     src={swapIcon}
@@ -174,8 +223,6 @@ const AdminDashboard: React.FC = () => {
                   />
                   <span>Ganti Akun</span>
                 </div>
-
-                {/* Option 2: Keluar */}
                 <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black">
                   <img
                     src={logoutIcon}
@@ -190,9 +237,9 @@ const AdminDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* --- 2. Main Body (90% Height) --- */}
+      {/* --- 2. Main Body --- */}
       <div className="flex h-[90%] w-full relative">
-        {/* --- Sidebar (Collapsible) --- */}
+        {/* --- Sidebar --- */}
         <aside
           className={`
             bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out
@@ -206,6 +253,8 @@ const AdminDashboard: React.FC = () => {
               defaultIcon={keyboardIcon}
               blueIcon={keyboardBlue}
               isSidebarOpen={isSidebarOpen}
+              isSelected={selectedFeature === "pengisian"} // Check State
+              onClick={() => setSelectedFeature("pengisian")} // Set State
             />
 
             <SidebarItem
@@ -213,40 +262,47 @@ const AdminDashboard: React.FC = () => {
               defaultIcon={groupsIcon}
               blueIcon={groupsBlue}
               isSidebarOpen={isSidebarOpen}
+              isSelected={selectedFeature === "peserta"}
+              onClick={() => setSelectedFeature("peserta")}
             />
 
-            {/* Divider */}
             <div className="h-px bg-gray-6 my-2 mx-2"></div>
 
             <SidebarItem
               label="Export Data"
               defaultIcon={exportIcon}
-              blueIcon={uploadBlue} // Mapped to upload.svg
+              blueIcon={uploadBlue}
               isSidebarOpen={isSidebarOpen}
+              isSelected={selectedFeature === "export"}
+              onClick={() => setSelectedFeature("export")}
             />
 
             <SidebarItem
               label="Import Data"
               defaultIcon={importIcon}
-              blueIcon={downloadBlue} // Mapped to download.svg
+              blueIcon={downloadBlue}
               isSidebarOpen={isSidebarOpen}
+              isSelected={selectedFeature === "import"}
+              onClick={() => setSelectedFeature("import")}
             />
           </div>
 
-          {/* Bottom Menu Group (Mode Gelap) */}
+          {/* Bottom Menu Group (Mode Gelap Toggle) */}
           <div className="px-4 mb-2 min-w-50 font-medium text-xl">
             <SidebarItem
               label="Mode Gelap"
               defaultIcon={darkModeIcon}
               blueIcon={darkModeBlue}
               isSidebarOpen={isSidebarOpen}
+              isSelected={isDarkMode} // Uses Boolean Toggle
+              onClick={() => setIsDarkMode(!isDarkMode)} // Toggle Boolean
             />
           </div>
         </aside>
 
         {/* --- Content Area --- */}
         <main className="flex-1 bg-white relative overflow-auto p-8 transition-all duration-300">
-          {/* Content goes here */}
+          {renderContent()}
         </main>
       </div>
     </div>

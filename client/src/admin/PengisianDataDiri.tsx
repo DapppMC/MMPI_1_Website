@@ -1,0 +1,500 @@
+// src/admin/PengisianDataDiri.tsx
+import React, { useState } from "react";
+import arrowRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
+
+// Define the comprehensive data structure
+export interface PengisianDataVariables {
+  nomorId: string;
+  tujuanPemeriksaan: string;
+  tanggalPemeriksaanDate: string;
+  tanggalPemeriksaanTime: string;
+  nik: string;
+  nama: string;
+  tanggalLahir: string;
+  jenisKelamin: "Pria" | "Wanita" | "";
+  sukuBangsa: string;
+  pendidikan: string;
+  pekerjaan: string;
+  statusPerkawinan: "Belum Menikah" | "Menikah" | "Sudah Berpisah" | "";
+  nomorHp: string;
+  alamat: string;
+}
+
+// Define Errors Type (same keys as data, but values are error messages)
+type FormErrors = Partial<Record<keyof PengisianDataVariables, string>>;
+
+interface Props {
+  onNext: (data: PengisianDataVariables) => void;
+}
+
+const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
+  // Local State for Form Fields
+  const [formData, setFormData] = useState<PengisianDataVariables>({
+    nomorId: "",
+    tujuanPemeriksaan: "",
+    tanggalPemeriksaanDate: "",
+    tanggalPemeriksaanTime: "",
+    nik: "",
+    nama: "",
+    tanggalLahir: "",
+    jenisKelamin: "",
+    sukuBangsa: "",
+    pendidikan: "",
+    pekerjaan: "",
+    statusPerkawinan: "",
+    nomorHp: "",
+    alamat: "",
+  });
+
+  // State for Validation Errors
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  // Generic Change Handler
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear error for this field immediately when user starts typing
+    if (errors[name as keyof PengisianDataVariables]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
+  };
+
+  // Validation Logic
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    let isValid = true;
+
+    // Iterate through all keys in formData
+    (Object.keys(formData) as Array<keyof PengisianDataVariables>).forEach(
+      (key) => {
+        // Check if value is empty string
+        if (!formData[key] || formData[key].trim() === "") {
+          newErrors[key] = "Kolom ini wajib diisi";
+          isValid = false;
+        }
+      },
+    );
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onNext(formData);
+    } else {
+      // Optional: Scroll to top or alert user that fields are missing
+      // console.log("Validation failed");
+    }
+  };
+
+  // Helper to determine input class names based on error state
+  const getInputClass = (fieldName: keyof PengisianDataVariables) => {
+    const baseClass =
+      "w-full p-3 border rounded-lg focus:outline-none transition-all";
+    if (errors[fieldName]) {
+      // Error State: Red Ring & Red Border
+      return `${baseClass} border-red-1 ring-1 ring-red-1 focus:ring-purple-2`;
+    }
+    // Normal State: Gray Border & Purple Focus
+    return `${baseClass} border-gray-400 focus:ring-2 focus:ring-purple-2`;
+  };
+
+  return (
+    <div className="flex flex-col h-full w-full max-w-5xl mx-auto">
+      {/* --- 1. Header / Breadcrumb --- */}
+      <div className="mb-8 shrink-0">
+        <h2 className="text-2xl font-bold flex items-center gap-2 text-black">
+          <span>MMPI</span>
+          <img src={arrowRightIcon} alt="arrow" className="w-5 h-5" />
+          <span>Pengisian Data</span>
+          <img src={arrowRightIcon} alt="arrow" className="w-5 h-5" />
+          <span>Data Diri</span>
+        </h2>
+      </div>
+
+      {/* --- 2. Scrollable Form Container --- */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6 pb-4">
+          {/* Row: Nomor ID */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4 mt-2">
+            <label className="font-bold text-sm text-black pt-3">
+              Nomor ID
+            </label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="nomorId"
+                value={formData.nomorId}
+                onChange={handleChange}
+                placeholder="Nomor ID peserta"
+                className={getInputClass("nomorId")}
+              />
+              {errors.nomorId && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.nomorId}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Tujuan Pemeriksaan */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Tujuan Pemeriksaan
+            </label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="tujuanPemeriksaan"
+                value={formData.tujuanPemeriksaan}
+                onChange={handleChange}
+                placeholder="Contoh: Seleksi Kerja, Konseling, dll"
+                className={getInputClass("tujuanPemeriksaan")}
+              />
+              {errors.tujuanPemeriksaan && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.tujuanPemeriksaan}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Tanggal Pemeriksaan (Split Date & Time) */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Tanggal Pemeriksaan
+            </label>
+            <div className="flex gap-4 w-full">
+              {/* Part 1: Date */}
+              <div className="w-1/2">
+                <input
+                  type="date"
+                  name="tanggalPemeriksaanDate"
+                  value={formData.tanggalPemeriksaanDate}
+                  onChange={handleChange}
+                  className={`${getInputClass("tanggalPemeriksaanDate")} uppercase text-gray-600`}
+                />
+                {errors.tanggalPemeriksaanDate && (
+                  <p className="text-red-1 text-xs mt-1 font-medium">
+                    {errors.tanggalPemeriksaanDate}
+                  </p>
+                )}
+              </div>
+              {/* Part 2: Time */}
+              <div className="w-1/2">
+                <input
+                  type="time"
+                  name="tanggalPemeriksaanTime"
+                  value={formData.tanggalPemeriksaanTime}
+                  onChange={handleChange}
+                  className={`${getInputClass("tanggalPemeriksaanTime")} uppercase text-gray-600`}
+                />
+                {errors.tanggalPemeriksaanTime && (
+                  <p className="text-red-1 text-xs mt-1 font-medium">
+                    {errors.tanggalPemeriksaanTime}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Row: NIK */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">NIK</label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="nik"
+                value={formData.nik}
+                onChange={handleChange}
+                placeholder="Nomor Induk Kependudukan"
+                className={getInputClass("nik")}
+              />
+              {errors.nik && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.nik}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Nama */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">Nama</label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="nama"
+                value={formData.nama}
+                onChange={handleChange}
+                placeholder="Nama peserta"
+                className={getInputClass("nama")}
+              />
+              {errors.nama && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.nama}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Tanggal Lahir */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Tanggal Lahir
+            </label>
+            <div className="w-full">
+              <input
+                type="date"
+                name="tanggalLahir"
+                value={formData.tanggalLahir}
+                onChange={handleChange}
+                className={`${getInputClass("tanggalLahir")} uppercase text-gray-600`}
+              />
+              {errors.tanggalLahir && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.tanggalLahir}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Jenis Kelamin (Radio) */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Jenis Kelamin
+            </label>
+            <div className="w-full">
+              <div className="flex gap-4 w-full">
+                {/* Pria */}
+                <label
+                  className={`flex-1 flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                    formData.jenisKelamin === "Pria"
+                      ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2"
+                      : errors.jenisKelamin
+                        ? "border-red-1 ring-1 ring-red-1" // Error state for Radio Label
+                        : "border-gray-400"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="jenisKelamin"
+                    value="Pria"
+                    checked={formData.jenisKelamin === "Pria"}
+                    onChange={handleChange}
+                    className="accent-blue-2 w-5 h-5"
+                  />
+                  <span className="text-gray-700">Pria</span>
+                </label>
+
+                {/* Wanita */}
+                <label
+                  className={`flex-1 flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                    formData.jenisKelamin === "Wanita"
+                      ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2"
+                      : errors.jenisKelamin
+                        ? "border-red-1 ring-1 ring-red-1" // Error state for Radio Label
+                        : "border-gray-400"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="jenisKelamin"
+                    value="Wanita"
+                    checked={formData.jenisKelamin === "Wanita"}
+                    onChange={handleChange}
+                    className="accent-blue-2 w-5 h-5"
+                  />
+                  <span className="text-gray-700">Wanita</span>
+                </label>
+              </div>
+              {errors.jenisKelamin && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.jenisKelamin}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Suku Bangsa */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Suku Bangsa
+            </label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="sukuBangsa"
+                value={formData.sukuBangsa}
+                onChange={handleChange}
+                placeholder="Suku bangsa"
+                className={getInputClass("sukuBangsa")}
+              />
+              {errors.sukuBangsa && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.sukuBangsa}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Pendidikan */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Pendidikan
+            </label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="pendidikan"
+                value={formData.pendidikan}
+                onChange={handleChange}
+                placeholder="Pendidikan terakhir"
+                className={getInputClass("pendidikan")}
+              />
+              {errors.pendidikan && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.pendidikan}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Pekerjaan */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Pekerjaan
+            </label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="pekerjaan"
+                value={formData.pekerjaan}
+                onChange={handleChange}
+                placeholder="Pekerjaan saat ini"
+                className={getInputClass("pekerjaan")}
+              />
+              {errors.pekerjaan && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.pekerjaan}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Status Perkawinan */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Status Perkawinan
+            </label>
+            <div className="w-full">
+              <div className="relative w-full">
+                <select
+                  name="statusPerkawinan"
+                  value={formData.statusPerkawinan}
+                  onChange={handleChange}
+                  className={`${getInputClass("statusPerkawinan")} appearance-none bg-white text-gray-700`}
+                >
+                  <option value="" disabled>
+                    Pilih Status
+                  </option>
+                  <option value="Belum Menikah">Belum Menikah</option>
+                  <option value="Menikah">Menikah</option>
+                  <option value="Sudah Berpisah">Sudah Berpisah</option>
+                </select>
+                {/* Custom Arrow Icon */}
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                  <svg
+                    className="w-5 h-5 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </div>
+              </div>
+              {errors.statusPerkawinan && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.statusPerkawinan}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Nomor HP */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Nomor HP
+            </label>
+            <div className="w-full">
+              <input
+                type="tel"
+                name="nomorHp"
+                value={formData.nomorHp}
+                onChange={handleChange}
+                placeholder="Contoh: 081234567890"
+                className={getInputClass("nomorHp")}
+              />
+              {errors.nomorHp && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.nomorHp}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Alamat */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">Alamat</label>
+            <div className="w-full">
+              <input
+                name="alamat"
+                value={formData.alamat}
+                onChange={handleChange}
+                placeholder="Alamat lengkap"
+                className={getInputClass("alamat")}
+              />
+              {errors.alamat && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.alamat}
+                </p>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* --- 3. Footer / Button --- */}
+      <div className="mt-4 flex justify-end shrink-0 pt-4 border-t border-gray-200">
+        <button
+          onClick={handleSubmit}
+          className="bg-blue-2 hover:bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition-colors shadow-lg"
+        >
+          Selanjutnya
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default PengisianDataDiri;
