@@ -1,9 +1,76 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/inter/static/Inter_24pt-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/inter/static/Inter_24pt-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/inter/static/Inter_24pt-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/inter/static/Inter_24pt-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
 @theme {
-  /* Define custom colors using CSS variables with the --color- prefix */
-  --color-midnight: #121063;
-  --color-tahiti: #3ab7bf;
-  --color-my-custom-color: #ff5733;
-  /* Your new custom color */
+  /* Fonts */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Colors */
+  --color-white: #FEFEFE;
+  --color-black: #010101;
+
+  --color-gray-1: #D7DDE9;
+  --color-gray-2: #E5E9F2;
+  --color-gray-3: #696F7B;
+  --color-gray-4: #FAFAFA;
+  --color-gray-5: #F2F2F2;
+  --color-gray-6: #D4D4D4;
+  --color-gray-7: #EBECE9;
+  --color-gray-8: #C8C9C6;
+  --color-gray-9: #D9D9D9;
+
+  --color-invert-gray-1: #282216;
+  --color-invert-gray-2: #1A160D;
+  --color-invert-gray-3: #969084;
+  --color-invert-gray-4: #050505;
+  --color-invert-gray-5: #0D0D0D;
+  --color-invert-gray-6: #2B2B2B;
+  --color-invert-gray-7: #141316;
+  --color-invert-gray-8: #373639;
+  --color-invert-gray-9: #262626;
+  
+  --color-purple-1: #E3A4D3;
+  --color-purple-2: #B774F2;
+  --color-purple-3: #A8B1FF;
+  --color-purple-4: #8927E0;
+  
+  --color-green-1: #7BEDB1;
+  --color-green-2: #3A9E67;
+  --color-green-3: #4AA8A0;
+  
+  --color-blue-1: #8EE8FF;
+  --color-blue-2: #1E78F2;
+  --color-blue-3: #44509C;
+  --color-blue-4: #4069E1;
+
+  --color-yellow-1: #FCD371;
+
+  --color-red-1: #D0342C;
 }

@@ -5,30 +5,29 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import Login from "./Login";
+import AdminLogin from "./admin/Login"; // Import Admin Login
+import AdminDashboard from "./admin/Dashboard";
 
-// Placeholder components - replace these with your actual page imports later
-const Login = () => <h2>Login Page</h2>;
-const Dashboard = () => <h2>MMPI Dashboard</h2>;
-const MMPITest = () => <h2>MMPI Assessment</h2>;
+// Placeholders (Create actual files for these later if they don't exist)
+const Dashboard = () => <h2>User Dashboard</h2>;
 const NotFound = () => <h2>404 - Page Not Found</h2>;
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Routes */}
+        {/* --- User Routes --- */}
         <Route path="/login" element={<Login />} />
-
-        {/* Protected/App Routes */}
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Specific Route for the MMPI Assessment */}
-        <Route path="/test" element={<MMPITest />} />
+        {/* --- Admin Routes --- */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-        {/* Redirect root "/" to dashboard or login */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Default Redirect */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Catch-all for undefined routes */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
