@@ -26,8 +26,10 @@ import downloadBlue from "../assets/icons/blue/download.svg";
 import darkModeBlue from "../assets/icons/blue/dark_mode.svg";
 
 // --- 3. Component Imports ---
-// FIX: Added 'type' keyword for PengisianDataVariables
-import PengisianDataDiri, { type PengisianDataVariables } from "./PengisianDataDiri";
+import PengisianDataDiri, {
+  type PengisianDataVariables,
+} from "./PengisianDataDiri";
+import PengisianDataTest from "./PengisianDataTest";
 
 // --- Helper Component for Sidebar Items ---
 interface SidebarItemProps {
@@ -35,7 +37,7 @@ interface SidebarItemProps {
   defaultIcon: string;
   blueIcon: string;
   isSidebarOpen: boolean;
-  isSelected?: boolean; // New Prop: For active state
+  isSelected?: boolean;
   onClick?: () => void;
 }
 
@@ -48,8 +50,6 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   onClick,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-
-  // Determine active styles: If selected OR hovered, show blue icon & gray bg
   const isActive = isSelected || isHovered;
 
   return (
@@ -77,7 +77,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
-// --- Mock Content Components (PengisianData removed as it is now imported) ---
+// --- Mock Content Components ---
 const DaftarPesertaContent = () => (
   <h2 className="text-2xl font-bold">Konten Daftar Peserta</h2>
 );
@@ -92,18 +92,25 @@ const AdminDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // 1. State for Selected Feature (String)
-  // Options: 'pengisian', 'peserta', 'export', 'import'
+  // 1. State for Selected Feature
   const [selectedFeature, setSelectedFeature] = useState<string>("pengisian");
 
-  // 2. State for Dark Mode Toggle (Boolean)
+  // 2. State for Pengisian Phase (1 = Data Diri, 2 = Test)
+  // FIX: Initialize based on local storage to persist phase on reload
+  const [pengisianPhase, setPengisianPhase] = useState<1 | 2>(() => {
+    const savedData = localStorage.getItem("mmpi_full_data");
+    // If we have full data (meaning Phase 1 was submitted), start at Phase 2
+    return savedData ? 2 : 1;
+  });
+
+  // 3. State for Dark Mode
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // 3. State for Pengisian Data (Phase 1 Result)
+  // 4. Data State
   const [pengisianData, setPengisianData] =
     useState<PengisianDataVariables | null>(null);
 
-  // State for Header Icons Hover
+  // Header Icons Hover
   const [hoverMenu, setHoverMenu] = useState(false);
   const [hoverPerson, setHoverPerson] = useState(false);
   const [hoverArrow, setHoverArrow] = useState(false);
@@ -129,18 +136,22 @@ const AdminDashboard: React.FC = () => {
     console.log("Navigate to Profile");
   };
 
-  // Handler for Pengisian Data Next Step
+  // --- Handler: When Phase 1 (Data Diri) is done ---
   const handlePengisianNext = (data: PengisianDataVariables) => {
-    console.log("Phase 1 Data Received:", data);
+    console.log("Phase 1 Complete. Switching to Test.");
     setPengisianData(data);
-    // Future: Logic to switch to Phase 2 (Questions)
+    setPengisianPhase(2);
   };
 
   // Helper to render content based on selection
   const renderContent = () => {
     switch (selectedFeature) {
       case "pengisian":
-        return <PengisianDataDiri onNext={handlePengisianNext} />;
+        if (pengisianPhase === 1) {
+          return <PengisianDataDiri onNext={handlePengisianNext} />;
+        } else {
+          return <PengisianDataTest />;
+        }
       case "peserta":
         return <DaftarPesertaContent />;
       case "export":
@@ -243,7 +254,11 @@ const AdminDashboard: React.FC = () => {
         <aside
           className={`
             bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out
-            ${isSidebarOpen ? "w-[20%] opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-10 border-none"}
+            ${
+              isSidebarOpen
+                ? "w-[20%] opacity-100 translate-x-0"
+                : "w-0 opacity-0 -translate-x-10 border-none"
+            }
           `}
         >
           {/* Top Menu Group */}
@@ -253,8 +268,13 @@ const AdminDashboard: React.FC = () => {
               defaultIcon={keyboardIcon}
               blueIcon={keyboardBlue}
               isSidebarOpen={isSidebarOpen}
-              isSelected={selectedFeature === "pengisian"} // Check State
-              onClick={() => setSelectedFeature("pengisian")} // Set State
+              isSelected={selectedFeature === "pengisian"}
+              onClick={() => {
+                setSelectedFeature("pengisian");
+                // FIX: Only reset to Phase 1 if data is completely missing,
+                // otherwise let the state persistence handle it.
+                // Or simply do NOT reset logic here, allowing user to resume.
+              }}
             />
 
             <SidebarItem
@@ -287,15 +307,15 @@ const AdminDashboard: React.FC = () => {
             />
           </div>
 
-          {/* Bottom Menu Group (Mode Gelap Toggle) */}
+          {/* Bottom Menu Group */}
           <div className="px-4 mb-2 min-w-50 font-medium text-xl">
             <SidebarItem
               label="Mode Gelap"
               defaultIcon={darkModeIcon}
               blueIcon={darkModeBlue}
               isSidebarOpen={isSidebarOpen}
-              isSelected={isDarkMode} // Uses Boolean Toggle
-              onClick={() => setIsDarkMode(!isDarkMode)} // Toggle Boolean
+              isSelected={isDarkMode}
+              onClick={() => setIsDarkMode(!isDarkMode)}
             />
           </div>
         </aside>

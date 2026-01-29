@@ -1,11 +1,12 @@
 // src/admin/PengisianDataDiri.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import arrowRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
 
 // Define the comprehensive data structure
 export interface PengisianDataVariables {
   nomorId: string;
   tujuanPemeriksaan: string;
+  durasiPengerjaan: string; // [New Field]
   tanggalPemeriksaanDate: string;
   tanggalPemeriksaanTime: string;
   nik: string;
@@ -20,7 +21,7 @@ export interface PengisianDataVariables {
   alamat: string;
 }
 
-// Define Errors Type (same keys as data, but values are error messages)
+// Define Errors Type
 type FormErrors = Partial<Record<keyof PengisianDataVariables, string>>;
 
 interface Props {
@@ -28,23 +29,37 @@ interface Props {
 }
 
 const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
-  // Local State for Form Fields
-  const [formData, setFormData] = useState<PengisianDataVariables>({
-    nomorId: "",
-    tujuanPemeriksaan: "",
-    tanggalPemeriksaanDate: "",
-    tanggalPemeriksaanTime: "",
-    nik: "",
-    nama: "",
-    tanggalLahir: "",
-    jenisKelamin: "",
-    sukuBangsa: "",
-    pendidikan: "",
-    pekerjaan: "",
-    statusPerkawinan: "",
-    nomorHp: "",
-    alamat: "",
+  // 1. Initialize State from LocalStorage if available
+  const [formData, setFormData] = useState<PengisianDataVariables>(() => {
+    const savedData = localStorage.getItem("mmpi_phase1_data");
+    if (savedData) {
+      // Check if saved data has new field, if not, merge it
+      const parsed = JSON.parse(savedData);
+      return { durasiPengerjaan: "", ...parsed };
+    }
+    return {
+      nomorId: "",
+      tujuanPemeriksaan: "",
+      durasiPengerjaan: "", // [New Field Init]
+      tanggalPemeriksaanDate: "",
+      tanggalPemeriksaanTime: "",
+      nik: "",
+      nama: "",
+      tanggalLahir: "",
+      jenisKelamin: "",
+      sukuBangsa: "",
+      pendidikan: "",
+      pekerjaan: "",
+      statusPerkawinan: "",
+      nomorHp: "",
+      alamat: "",
+    };
   });
+
+  // 2. Save to LocalStorage whenever formData changes (Real-time persistence)
+  useEffect(() => {
+    localStorage.setItem("mmpi_phase1_data", JSON.stringify(formData));
+  }, [formData]);
 
   // State for Validation Errors
   const [errors, setErrors] = useState<FormErrors>({});
@@ -76,10 +91,8 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    // Iterate through all keys in formData
     (Object.keys(formData) as Array<keyof PengisianDataVariables>).forEach(
       (key) => {
-        // Check if value is empty string
         if (!formData[key] || formData[key].trim() === "") {
           newErrors[key] = "Kolom ini wajib diisi";
           isValid = false;
@@ -94,10 +107,24 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
+      // --- REQUIREMENT 2a & 2b: Save Data + Test Placeholders to JSON (LocalStorage) ---
+
+      // Create the comprehensive JSON structure
+      const finalJsonData = {
+        ...formData,
+        // Initialize 566 boolean questions (defaulting to null or false as placeholders)
+        testAnswers: Array(566).fill(null),
+      };
+
+      // Save to localStorage (acting as our "JSON file" persistence layer)
+      localStorage.setItem("mmpi_full_data", JSON.stringify(finalJsonData));
+
+      console.log("Data Saved to Storage:", finalJsonData);
+
+      // --- REQUIREMENT 3: Navigate (Trigger Parent) ---
       onNext(formData);
     } else {
-      // Optional: Scroll to top or alert user that fields are missing
-      // console.log("Validation failed");
+      // Optional: Trigger a shake animation or scroll to top
     }
   };
 
@@ -105,10 +132,12 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
   const getInputClass = (fieldName: keyof PengisianDataVariables) => {
     const baseClass =
       "w-full p-3 border rounded-lg focus:outline-none transition-all";
+
     if (errors[fieldName]) {
-      // Error State: Red Ring & Red Border
-      return `${baseClass} border-red-1 ring-1 ring-red-1 focus:ring-purple-2`;
+      // Error State: Red Ring & Red Border & Red Focus
+      return `${baseClass} border-red-1 ring-1 ring-red-1 focus:ring-red-1`;
     }
+
     // Normal State: Gray Border & Purple Focus
     return `${baseClass} border-gray-400 focus:ring-2 focus:ring-purple-2`;
   };
@@ -168,6 +197,28 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
               {errors.tujuanPemeriksaan && (
                 <p className="text-red-1 text-xs mt-1 font-medium">
                   {errors.tujuanPemeriksaan}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row: Durasi Pengerjaan [NEW FIELD] */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4">
+            <label className="font-bold text-sm text-black pt-3">
+              Durasi Pengerjaan
+            </label>
+            <div className="w-full">
+              <input
+                type="text"
+                name="durasiPengerjaan"
+                value={formData.durasiPengerjaan}
+                onChange={handleChange}
+                placeholder="Contoh: 60 Menit"
+                className={getInputClass("durasiPengerjaan")}
+              />
+              {errors.durasiPengerjaan && (
+                <p className="text-red-1 text-xs mt-1 font-medium">
+                  {errors.durasiPengerjaan}
                 </p>
               )}
             </div>
@@ -286,7 +337,7 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                     formData.jenisKelamin === "Pria"
                       ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2"
                       : errors.jenisKelamin
-                        ? "border-red-1 ring-1 ring-red-1" // Error state for Radio Label
+                        ? "border-red-1 ring-1 ring-red-1"
                         : "border-gray-400"
                   }`}
                 >
@@ -296,7 +347,7 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                     value="Pria"
                     checked={formData.jenisKelamin === "Pria"}
                     onChange={handleChange}
-                    className="accent-blue-2 w-5 h-5"
+                    className="accent-purple-2 w-5 h-5"
                   />
                   <span className="text-gray-700">Pria</span>
                 </label>
@@ -307,7 +358,7 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                     formData.jenisKelamin === "Wanita"
                       ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2"
                       : errors.jenisKelamin
-                        ? "border-red-1 ring-1 ring-red-1" // Error state for Radio Label
+                        ? "border-red-1 ring-1 ring-red-1"
                         : "border-gray-400"
                   }`}
                 >
@@ -317,7 +368,7 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                     value="Wanita"
                     checked={formData.jenisKelamin === "Wanita"}
                     onChange={handleChange}
-                    className="accent-blue-2 w-5 h-5"
+                    className="accent-purple-2 w-5 h-5"
                   />
                   <span className="text-gray-700">Wanita</span>
                 </label>
