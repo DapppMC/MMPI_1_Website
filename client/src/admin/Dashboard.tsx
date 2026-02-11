@@ -1,7 +1,7 @@
 // src/admin/Dashboard.tsx
 import React, { useState, useEffect, useRef } from "react";
 
-// --- 1. Light Mode Icons Import ---
+// --- Icons Import (Kept same as your code) ---
 import menuCloseIcon from "../assets/icons/light_mode/menu_close.svg";
 import menuOpenIcon from "../assets/icons/light_mode/menu_open.svg";
 import personIcon from "../assets/icons/light_mode/person.svg";
@@ -14,7 +14,6 @@ import darkModeIcon from "../assets/icons/light_mode/dark_mode.svg";
 import swapIcon from "../assets/icons/light_mode/swap_horiz.svg";
 import logoutIcon from "../assets/icons/light_mode/move_item.svg";
 
-// --- 2. Blue Icons Import ---
 import menuBlue from "../assets/icons/blue/menu.svg";
 import menuOpenBlue from "../assets/icons/blue/menu_open.svg";
 import personBlue from "../assets/icons/blue/person.svg";
@@ -25,13 +24,16 @@ import uploadBlue from "../assets/icons/blue/upload.svg";
 import downloadBlue from "../assets/icons/blue/download.svg";
 import darkModeBlue from "../assets/icons/blue/dark_mode.svg";
 
-// --- 3. Component Imports ---
+// --- Component Imports ---
 import PengisianDataDiri, {
   type PengisianDataVariables,
 } from "./PengisianDataDiri";
 import PengisianDataTest from "./PengisianDataTest";
+import DaftarPeserta from "./DaftarPeserta";
+import TampilkanData from "./TampilkanData"; // [NEW IMPORT]
+import { type ParticipantData } from "../data/participants"; // Import type
 
-// --- Helper Component for Sidebar Items ---
+// --- Helper Component (Kept same) ---
 interface SidebarItemProps {
   label: string;
   defaultIcon: string;
@@ -78,9 +80,6 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 };
 
 // --- Mock Content Components ---
-const DaftarPesertaContent = () => (
-  <h2 className="text-2xl font-bold">Konten Daftar Peserta</h2>
-);
 const ExportDataContent = () => (
   <h2 className="text-2xl font-bold">Konten Export Data</h2>
 );
@@ -95,11 +94,9 @@ const AdminDashboard: React.FC = () => {
   // 1. State for Selected Feature
   const [selectedFeature, setSelectedFeature] = useState<string>("pengisian");
 
-  // 2. State for Pengisian Phase (1 = Data Diri, 2 = Test)
-  // FIX: Initialize based on local storage to persist phase on reload
+  // 2. State for Pengisian Phase
   const [pengisianPhase, setPengisianPhase] = useState<1 | 2>(() => {
     const savedData = localStorage.getItem("mmpi_full_data");
-    // If we have full data (meaning Phase 1 was submitted), start at Phase 2
     return savedData ? 2 : 1;
   });
 
@@ -109,6 +106,13 @@ const AdminDashboard: React.FC = () => {
   // 4. Data State
   const [pengisianData, setPengisianData] =
     useState<PengisianDataVariables | null>(null);
+
+  // 5. [NEW] State for Daftar Peserta View Mode
+  const [pesertaViewMode, setPesertaViewMode] = useState<"list" | "detail">(
+    "list",
+  );
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<ParticipantData | null>(null);
 
   // Header Icons Hover
   const [hoverMenu, setHoverMenu] = useState(false);
@@ -136,11 +140,21 @@ const AdminDashboard: React.FC = () => {
     console.log("Navigate to Profile");
   };
 
-  // --- Handler: When Phase 1 (Data Diri) is done ---
   const handlePengisianNext = (data: PengisianDataVariables) => {
-    console.log("Phase 1 Complete. Switching to Test.");
     setPengisianData(data);
     setPengisianPhase(2);
+  };
+
+  // [NEW] Handler when "Tampilkan Data" is clicked in the child component
+  const handleViewDetail = (participant: ParticipantData) => {
+    setSelectedParticipant(participant);
+    setPesertaViewMode("detail");
+  };
+
+  // [NEW] Handler to go back to list
+  const handleBackToList = () => {
+    setPesertaViewMode("list");
+    setSelectedParticipant(null);
   };
 
   // Helper to render content based on selection
@@ -153,7 +167,44 @@ const AdminDashboard: React.FC = () => {
           return <PengisianDataTest />;
         }
       case "peserta":
-        return <DaftarPesertaContent />;
+        // [UPDATE] Logic to switch between List and Detail view
+        if (pesertaViewMode === "detail" && selectedParticipant) {
+          return (
+            <div className="flex flex-col gap-6">
+              {/* Header with Breadcrumb extended */}
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="text-black">MMPI</span>
+                <span className="text-gray-3 font-normal">&rsaquo;</span>
+                <button
+                  onClick={handleBackToList}
+                  className="text-black hover:text-blue-3 transition"
+                >
+                  Daftar Peserta
+                </button>
+                <span className="text-gray-3 font-normal">&rsaquo;</span>
+                <span className="text-black">Detail</span>
+              </h2>
+              {/* Render The Placeholder Page */}
+              <TampilkanData
+                data={selectedParticipant}
+                onBack={handleBackToList}
+              />
+            </div>
+          );
+        }
+
+        // Default List View
+        return (
+          <div className="flex flex-col gap-6">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <span className="text-black">MMPI</span>
+              <span className="text-gray-3 font-normal">&rsaquo;</span>
+              <span className="text-black">Daftar Peserta</span>
+            </h2>
+            {/* Pass the handler to the table */}
+            <DaftarPeserta onViewDetail={handleViewDetail} />
+          </div>
+        );
       case "export":
         return <ExportDataContent />;
       case "import":
@@ -271,9 +322,6 @@ const AdminDashboard: React.FC = () => {
               isSelected={selectedFeature === "pengisian"}
               onClick={() => {
                 setSelectedFeature("pengisian");
-                // FIX: Only reset to Phase 1 if data is completely missing,
-                // otherwise let the state persistence handle it.
-                // Or simply do NOT reset logic here, allowing user to resume.
               }}
             />
 
@@ -283,7 +331,11 @@ const AdminDashboard: React.FC = () => {
               blueIcon={groupsBlue}
               isSidebarOpen={isSidebarOpen}
               isSelected={selectedFeature === "peserta"}
-              onClick={() => setSelectedFeature("peserta")}
+              onClick={() => {
+                setSelectedFeature("peserta");
+                // Reset view when clicking sidebar main item
+                setPesertaViewMode("list");
+              }}
             />
 
             <div className="h-px bg-gray-6 my-2 mx-2"></div>
