@@ -1,0 +1,86 @@
+rem vDos configuration, eventually set options in this file.
+rem Don't try to include DOS config.sys or Windows config.nt settings like FILES= or KEYB=. Those are meaningless and won't work!
+
+rem Directives and options are case insensitive, spaces decorative and ignored.
+rem [option] means that option is optional.
+
+
+REM Keyboard and mouse
+REM ==================
+rem Ctrl+V pastes Windows Clipboard text. If your program uses Ctrl+V itself:
+rem CTRL+V = OFF
+
+rem Extend the copy to Windows Clipboard functionality. See the last section in Printing.pdf for details:
+rem COPYCLIP = LPT5
+
+rem To change a reported keypress, specify the original and new hexadecimal scan/ASCII code pair.
+rem For instance set the Numpad comma to a decimal point:
+rem KEYCODE = 532C=342E
+
+rem In text mode the mouse is disabled.
+rem Especially real ancient DOS programs handle the mouse badly (able to leave the window), to turn it on:
+rem MOUSE = ON
+
+
+REM Font
+REM ====
+rem Text is displayed by a built-in scalable TTF font, optimized for DOS programs.
+rem FONT = [-][BOLD, WIDE or font file]
+
+rem DOS ASCII codes 176-223 can display a mix of lines and extended characters.
+rem If characters are displayed while you expect lines/corners, enforce the latter by the - option.
+
+rem BOLD selects the bold variant of the internal font, WIDE a little wider one.
+
+rem To use another (monospaced) font, copy the font file (e.g. consola.ttf) to the vDos folder, then:
+rem FONT = CONSOLA.TTF
+rem Or more directly, for Windows installed fonts:
+rem FONT = C:\WINDOWS\FONTS\CONSOLA
+rem If no file extension is supplied, TTF is assumed.
+
+
+REM Window
+REM ======
+rem The default vDos window is centered and will cover about 50% of the screen.
+rem WINDOW = [_][-][size%][,horz%:vert%]
+
+rem The _ option disables the vDos system menu and hides its icon.
+
+rem For readability a small margin is added to the left and right side. The - option disables this.
+
+rem 100 for size% gives a full screen view. Mind, it's still a window (in disguise), so won't obscure Windows notifications.
+rem Alt+Enter can be used at runtime to switch to and back from full screen.
+
+rem horz%/vert% = 0: the window is aligned to the left/top, to 100: the right/bottom.
+
+
+REM Text
+REM ====
+rem The number of lines and columns in text mode is the standard DOS 25x80.
+rem TEXT = lines x colums
+rem See for yourself if changing this (minimal 24x80) is supported by your program and useful.
+
+rem Text is displayed in the standard DOS colors. Change those by:
+rem THEME = [DARK][+][-][theme number, 0 to 9]
+
+rem DARK sets a dark(er) mode. The + option a full block cursor.
+
+rem The cursor is displayed in complementary colors. For the traditional fore- and background color switch, use the - option.
+
+
+REM Security/isolation
+REM ==================
+rem WINEXEC = OFF
+rem Blocks starting Windows programs in vDos. Like CMD or opening files by the designated Windows program.
+
+
+REM WordPerfect
+REM ===========
+rem The WP = directive is specific to WordPerfect.
+rem Documented at: https://mendelson.org/wpdos/vdoswp.html.
+
+
+REM Printing
+REM ========
+rem Without explicit settings, printing should mostly work just fine.
+rem If not, or you want more control over the output: See the Printing.pdf document.
