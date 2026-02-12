@@ -1,6 +1,5 @@
 // src/pages/DaftarPeserta.tsx
 import React, { useState, useEffect } from "react";
-// FIX: Import PARTICIPANTS as value and ParticipantData as type in one line or separate correctly
 import { PARTICIPANTS, type ParticipantData } from "../data/participants";
 
 // --- Icons Import ---
@@ -18,10 +17,13 @@ import IconDelete from "../assets/icons/light_mode/delete.svg";
 // Define Props
 interface DaftarPesertaProps {
   onViewDetail: (participant: ParticipantData) => void;
+  onPrintMode: () => void; // [NEW PROP] To trigger print mode
 }
 
-// FIX: Added 'DaftarPesertaProps' to the component definition so it accepts the prop
-const DaftarPeserta: React.FC<DaftarPesertaProps> = ({ onViewDetail }) => {
+const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
+  onViewDetail,
+  onPrintMode,
+}) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   // Dropdown State: Stores the INDEX of the currently open row
@@ -102,7 +104,6 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({ onViewDetail }) => {
                     {/* FLYING DROPDOWN MENU */}
                     {openDropdownIndex === index && (
                       <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-gray-6 rounded-lg shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-                        {/* 1. Tampilkan Data - Triggering the parent function */}
                         <div
                           onClick={() => onViewDetail(item)}
                           className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors border-b border-gray-1/50"
@@ -117,7 +118,11 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({ onViewDetail }) => {
                           </span>
                         </div>
 
-                        <div className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors">
+                        {/* [UPDATED] Trigger Print Mode */}
+                        <div
+                          onClick={onPrintMode}
+                          className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors"
+                        >
                           <img
                             src={IconPrinter}
                             alt="Print"
@@ -157,7 +162,7 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({ onViewDetail }) => {
         </table>
       </div>
 
-      {/* Pagination Container */}
+      {/* Pagination Container (Same as before) */}
       <div className="flex items-center justify-center mt-8 gap-2">
         <button
           onClick={() => handlePageChange(currentPage - 1)}

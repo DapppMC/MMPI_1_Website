@@ -30,8 +30,11 @@ import PengisianDataDiri, {
 } from "./PengisianDataDiri";
 import PengisianDataTest from "./PengisianDataTest";
 import DaftarPeserta from "./DaftarPeserta";
-import TampilkanData from "./TampilkanData"; // [NEW IMPORT]
-import { type ParticipantData } from "../data/participants"; // Import type
+import TampilkanData from "./TampilkanData";
+import CetakData from "./CetakData"; // [NEW IMPORT]
+import PreviewCetak from "./PreviewCetak";
+import { type ParticipantData } from "../data/participants";
+import { PARTICIPANTS } from "../data/participants";
 
 // --- Helper Component (Kept same) ---
 interface SidebarItemProps {
@@ -108,9 +111,10 @@ const AdminDashboard: React.FC = () => {
     useState<PengisianDataVariables | null>(null);
 
   // 5. [NEW] State for Daftar Peserta View Mode
-  const [pesertaViewMode, setPesertaViewMode] = useState<"list" | "detail">(
-    "list",
-  );
+  const [pesertaViewMode, setPesertaViewMode] = useState<
+    "list" | "detail" | "print" | "preview"
+  >("list");
+  const [dataToPrint, setDataToPrint] = useState<ParticipantData[]>([]);
   const [selectedParticipant, setSelectedParticipant] =
     useState<ParticipantData | null>(null);
 
@@ -157,6 +161,17 @@ const AdminDashboard: React.FC = () => {
     setSelectedParticipant(null);
   };
 
+  const handlePrintMode = () => {
+    setPesertaViewMode("print");
+  };
+
+  const handleExecutePrint = (selectedIndices: number[]) => {
+    // Map indices to actual data
+    const data = selectedIndices.map((index) => PARTICIPANTS[index]);
+    setDataToPrint(data);
+    setPesertaViewMode("preview"); // Switch to preview mode
+  };
+
   // Helper to render content based on selection
   const renderContent = () => {
     switch (selectedFeature) {
@@ -193,6 +208,40 @@ const AdminDashboard: React.FC = () => {
           );
         }
 
+        // 2. PRINT VIEW
+        if (pesertaViewMode === "print") {
+          return (
+            <div className="flex flex-col gap-6">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="text-black">MMPI</span>
+                <span className="text-gray-3 font-normal">&rsaquo;</span>
+                <button
+                  onClick={handleBackToList}
+                  className="text-black hover:text-blue-600 transition"
+                >
+                  Daftar Peserta
+                </button>
+                <span className="text-gray-3 font-normal">&rsaquo;</span>
+                <span className="text-black">Cetak Data</span>
+              </h2>
+              <CetakData
+                onCancel={handleBackToList}
+                onPrint={handleExecutePrint}
+              />
+            </div>
+          );
+        }
+        if (pesertaViewMode === "preview") {
+          // We hide the standard dashboard header/breadcrumbs for the preview to look like a clean print preview page
+          // or we can keep them. Usually print preview takes over the whole main area.
+          return (
+            <PreviewCetak
+              dataToPrint={dataToPrint}
+              onBack={() => setPesertaViewMode("print")}
+            />
+          );
+        }
+
         // Default List View
         return (
           <div className="flex flex-col gap-6">
@@ -202,7 +251,10 @@ const AdminDashboard: React.FC = () => {
               <span className="text-black">Daftar Peserta</span>
             </h2>
             {/* Pass the handler to the table */}
-            <DaftarPeserta onViewDetail={handleViewDetail} />
+            <DaftarPeserta
+              onViewDetail={handleViewDetail}
+              onPrintMode={handlePrintMode}
+            />
           </div>
         );
       case "export":
@@ -215,26 +267,16 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full font-sans overflow-hidden bg-white text-black">
-      {/* --- 1. Top Navbar --- */}
-      <header className="h-[10%] w-full bg-gray-5 border-b border-gray-6 flex items-center justify-between px-6 shrink-0 z-20 relative">
+    <div className="flex flex-col h-screen w-full font-sans overflow-hidden bg-white text-black print:h-auto print:overflow-visible">
+      {/* FIX 1: Added 'print:hidden' to Header */}
+      <header className="h-[10%] w-full bg-gray-5 border-b border-gray-6 flex items-center justify-between px-6 shrink-0 z-20 relative print:hidden">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            onMouseEnter={() => setHoverMenu(true)}
-            onMouseLeave={() => setHoverMenu(false)}
             className="p-2 hover:bg-gray-2 rounded-lg transition-colors focus:outline-none"
           >
             <img
-              src={
-                isSidebarOpen
-                  ? hoverMenu
-                    ? menuOpenBlue
-                    : menuCloseIcon
-                  : hoverMenu
-                    ? menuBlue
-                    : menuOpenIcon
-              }
+              src={isSidebarOpen ? menuCloseIcon : menuOpenIcon}
               alt="Toggle Menu"
               className="w-6 h-6"
             />
@@ -300,19 +342,14 @@ const AdminDashboard: React.FC = () => {
       </header>
 
       {/* --- 2. Main Body --- */}
-      <div className="flex h-[90%] w-full relative">
-        {/* --- Sidebar --- */}
+      <div className="flex h-[90%] w-full relative print:h-auto print:overflow-visible">
+        {/* FIX 1: Added 'print:hidden' to Sidebar */}
         <aside
           className={`
-            bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out
-            ${
-              isSidebarOpen
-                ? "w-[20%] opacity-100 translate-x-0"
-                : "w-0 opacity-0 -translate-x-10 border-none"
-            }
+            bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out print:hidden
+            ${isSidebarOpen ? "w-[20%] opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-10 border-none"}
           `}
         >
-          {/* Top Menu Group */}
           <div className="flex flex-col gap-1 px-4 min-w-50 font-medium text-xl">
             <SidebarItem
               label="Pengisian Data"
@@ -320,11 +357,8 @@ const AdminDashboard: React.FC = () => {
               blueIcon={keyboardBlue}
               isSidebarOpen={isSidebarOpen}
               isSelected={selectedFeature === "pengisian"}
-              onClick={() => {
-                setSelectedFeature("pengisian");
-              }}
+              onClick={() => setSelectedFeature("pengisian")}
             />
-
             <SidebarItem
               label="Daftar Peserta"
               defaultIcon={groupsIcon}
@@ -333,13 +367,10 @@ const AdminDashboard: React.FC = () => {
               isSelected={selectedFeature === "peserta"}
               onClick={() => {
                 setSelectedFeature("peserta");
-                // Reset view when clicking sidebar main item
                 setPesertaViewMode("list");
               }}
             />
-
             <div className="h-px bg-gray-6 my-2 mx-2"></div>
-
             <SidebarItem
               label="Export Data"
               defaultIcon={exportIcon}
@@ -348,7 +379,6 @@ const AdminDashboard: React.FC = () => {
               isSelected={selectedFeature === "export"}
               onClick={() => setSelectedFeature("export")}
             />
-
             <SidebarItem
               label="Import Data"
               defaultIcon={importIcon}
@@ -358,8 +388,6 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setSelectedFeature("import")}
             />
           </div>
-
-          {/* Bottom Menu Group */}
           <div className="px-4 mb-2 min-w-50 font-medium text-xl">
             <SidebarItem
               label="Mode Gelap"
@@ -373,7 +401,8 @@ const AdminDashboard: React.FC = () => {
         </aside>
 
         {/* --- Content Area --- */}
-        <main className="flex-1 bg-white relative overflow-auto p-8 transition-all duration-300">
+        {/* FIX 2 & 1: Added print classes to ensure it takes full width and doesn't scroll */}
+        <main className="flex-1 bg-white relative overflow-auto p-8 transition-all duration-300 print:overflow-visible print:h-auto print:p-0 print:absolute print:top-0 print:left-0 print:w-full print:z-50">
           {renderContent()}
         </main>
       </div>
