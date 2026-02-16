@@ -1,6 +1,7 @@
 // src/admin/PengisianDataTest.tsx
 import React, { useState, useEffect } from "react";
-import { MMPI_QUESTIONS } from "../constants/questions";
+// Import the new API fetch function instead of the static array
+import { fetchMMPIQuestions } from "../constants/questions";
 
 // Icons
 import chevronRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
@@ -10,17 +11,21 @@ interface Props {
   // Optional props
 }
 
+const TOTAL_QUESTIONS = 566;
+
 const PengisianDataTest: React.FC<Props> = () => {
-  // --- State Initialization ---
+  // --- NEW: Database State Initialization ---
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
   // 1. Load Answers
   const [answers, setAnswers] = useState<(boolean | null)[]>(() => {
     const savedData = localStorage.getItem("mmpi_full_data");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      return parsed.testAnswers || Array(566).fill(null);
+      return parsed.testAnswers || Array(TOTAL_QUESTIONS).fill(null);
     }
-    return Array(566).fill(null);
+    return Array(TOTAL_QUESTIONS).fill(null);
   });
 
   // 2. Load Shuffle Map (Ensures order persists across reloads/navigation)
@@ -29,7 +34,7 @@ const PengisianDataTest: React.FC<Props> = () => {
     if (savedShuffle) {
       return JSON.parse(savedShuffle);
     }
-    const indices = Array.from({ length: 566 }, (_, i) => i);
+    const indices = Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
     for (let i = indices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]];
@@ -44,9 +49,26 @@ const PengisianDataTest: React.FC<Props> = () => {
 
   // --- Derived State ---
   const totalAnswered = answers.filter((a) => a !== null).length;
-  const isAllAnswered = totalAnswered === 566;
+  const isAllAnswered = totalAnswered === TOTAL_QUESTIONS;
 
   // --- Effects ---
+
+  // NEW: Fetch questions from the database on component mount
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        const data = await fetchMMPIQuestions();
+        setQuestions(data);
+      } catch (error) {
+        console.error("Gagal memuat pertanyaan:", error);
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+
+    loadQuestions();
+  }, []);
+
   useEffect(() => {
     const savedData = localStorage.getItem("mmpi_full_data");
     let fullData = savedData ? JSON.parse(savedData) : {};
@@ -56,7 +78,13 @@ const PengisianDataTest: React.FC<Props> = () => {
 
   // --- Handlers ---
   const realQuestionIdx = shuffledIndices[currentDisplayIdx];
-  const questionText = MMPI_QUESTIONS[realQuestionIdx];
+
+  // NEW: Safely get the question text or a loading/fallback string
+  const questionText = isLoadingQuestions
+    ? "Memuat pertanyaan dari database..."
+    : questions[realQuestionIdx] ||
+      `Pertanyaan tidak ditemukan untuk indeks ${realQuestionIdx}`;
+
   const currentAnswer = answers[realQuestionIdx];
 
   const handleAnswer = (val: boolean) => {
@@ -82,7 +110,6 @@ const PengisianDataTest: React.FC<Props> = () => {
     const ans = answers[realIdx];
     const isCurrent = displayIdx === currentDisplayIdx;
 
-    // Added 'm-0.5' (margin) to ensure borders don't clip at edges
     const base =
       "w-10 h-10 flex items-center justify-center rounded-lg text-sm font-semibold border transition-all cursor-pointer select-none m-0.5";
 
@@ -119,7 +146,9 @@ const PengisianDataTest: React.FC<Props> = () => {
 
             {/* Question Box */}
             <div className="w-full p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
-              <p className="text-lg text-gray-800 font-medium">
+              <p
+                className={`text-lg font-medium ${isLoadingQuestions ? "text-gray-400 animate-pulse" : "text-gray-800"}`}
+              >
                 {questionText}
               </p>
             </div>
@@ -131,13 +160,14 @@ const PengisianDataTest: React.FC<Props> = () => {
                   currentAnswer === true
                     ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2"
                     : "border-gray-300 hover:bg-gray-50"
-                }`}
+                } ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
               >
                 <input
                   type="radio"
                   name={`q-${realQuestionIdx}`}
                   checked={currentAnswer === true}
                   onChange={() => handleAnswer(true)}
+                  disabled={isLoadingQuestions}
                   className="w-5 h-5 accent-blue-600"
                 />
                 <span className="text-gray-800 font-medium">Ya</span>
@@ -148,13 +178,14 @@ const PengisianDataTest: React.FC<Props> = () => {
                   currentAnswer === false
                     ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2"
                     : "border-gray-300 hover:bg-gray-50"
-                }`}
+                } ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
               >
                 <input
                   type="radio"
                   name={`q-${realQuestionIdx}`}
                   checked={currentAnswer === false}
                   onChange={() => handleAnswer(false)}
+                  disabled={isLoadingQuestions}
                   className="w-5 h-5 accent-blue-600"
                 />
                 <span className="text-gray-800 font-medium">Tidak</span>
@@ -170,16 +201,21 @@ const PengisianDataTest: React.FC<Props> = () => {
                 onClick={() =>
                   setCurrentDisplayIdx(Math.max(0, currentDisplayIdx - 1))
                 }
-                disabled={currentDisplayIdx === 0}
+                disabled={currentDisplayIdx === 0 || isLoadingQuestions}
                 className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
               >
                 Kembali
               </button>
               <button
                 onClick={() =>
-                  setCurrentDisplayIdx(Math.min(565, currentDisplayIdx + 1))
+                  setCurrentDisplayIdx(
+                    Math.min(TOTAL_QUESTIONS - 1, currentDisplayIdx + 1),
+                  )
                 }
-                disabled={currentDisplayIdx === 565}
+                disabled={
+                  currentDisplayIdx === TOTAL_QUESTIONS - 1 ||
+                  isLoadingQuestions
+                }
                 className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 Lanjut
@@ -189,6 +225,7 @@ const PengisianDataTest: React.FC<Props> = () => {
             {/* Right Side: Selesai */}
             <button
               onClick={handleSelesaiClick}
+              disabled={isLoadingQuestions}
               className={`px-8 py-2 rounded-lg font-bold text-white transition-all shadow-md ${
                 isAllAnswered
                   ? "bg-blue-600 hover:bg-blue-700 opacity-100"
@@ -214,8 +251,10 @@ const PengisianDataTest: React.FC<Props> = () => {
               {shuffledIndices.map((_, displayIndex) => (
                 <div
                   key={displayIndex}
-                  onClick={() => setCurrentDisplayIdx(displayIndex)}
-                  className={getGridItemClass(displayIndex)}
+                  onClick={() =>
+                    !isLoadingQuestions && setCurrentDisplayIdx(displayIndex)
+                  }
+                  className={`${getGridItemClass(displayIndex)} ${isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {displayIndex + 1}
                 </div>
@@ -228,7 +267,7 @@ const PengisianDataTest: React.FC<Props> = () => {
               <h4 className="font-bold mb-2">Ringkasan</h4>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Jumlah Soal</span>
-                <span className="font-semibold">566</span>
+                <span className="font-semibold">{TOTAL_QUESTIONS}</span>
               </div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Dijawab</span>
@@ -239,7 +278,7 @@ const PengisianDataTest: React.FC<Props> = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Belum Dijawab</span>
                 <span className="font-semibold text-gray-500">
-                  {566 - totalAnswered}
+                  {TOTAL_QUESTIONS - totalAnswered}
                 </span>
               </div>
             </div>
@@ -250,25 +289,21 @@ const PengisianDataTest: React.FC<Props> = () => {
       {/* --- POP UP MODAL (Fixed Position) --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          {/* Overlay */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
 
-          {/* Modal Content */}
           <div className="bg-white rounded-xl shadow-2xl p-8 w-[400px] flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 relative z-10">
-            {/* Icon */}
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
               <img src={errorIcon} alt="Alert" className="w-10 h-10" />
             </div>
 
             {!isAllAnswered ? (
-              // CASE 1: Incomplete
               <>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                   Belum Selesai!
                 </h3>
                 <p className="text-gray-500 mb-8">
-                  Masih ada {566 - totalAnswered} soal yang belum terisi.
-                  Silakan lengkapi semua jawaban terlebih dahulu.
+                  Masih ada {TOTAL_QUESTIONS - totalAnswered} soal yang belum
+                  terisi. Silakan lengkapi semua jawaban terlebih dahulu.
                 </p>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -278,7 +313,6 @@ const PengisianDataTest: React.FC<Props> = () => {
                 </button>
               </>
             ) : (
-              // CASE 2: Complete
               <>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                   Apakah kamu yakin?

@@ -19,7 +19,6 @@ export interface MmpiOutput {
   "8 (Sc)": MmpiScore;
   "9 (Ma)": MmpiScore;
   "0 (Si)": MmpiScore;
-  "38": MmpiScore; // Explicit key "38" from your example
   // Single number fields
   "A": number;
   "R": number;
@@ -36,7 +35,7 @@ export interface MmpiOutput {
 }
 
 export interface ParticipantData {
-  nomorId: string;
+  idPeserta: string;
   tujuanPemeriksaan: string;
   tanggalPemeriksaanDate: string;
   tanggalPemeriksaanTime: string;
@@ -57,7 +56,7 @@ export interface ParticipantData {
 
 export const PARTICIPANTS: ParticipantData[] = [
   {
-    nomorId: "1234567890",
+    idPeserta: "1234567890",
     nama: "John Doe",
     jenisKelamin: "Pria",
     tanggalPemeriksaanDate: "12/14/2025",
@@ -141,7 +140,7 @@ export const PARTICIPANTS: ParticipantData[] = [
   },
   },
   {
-    nomorId: "0123456789",
+    idPeserta: "0123456789",
     nama: "Jane Doe",
     jenisKelamin: "Wanita",
     tanggalPemeriksaanDate: "12/14/2025",
@@ -186,7 +185,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "1029384756",
+    idPeserta: "1029384756",
     nama: "Alpha",
     jenisKelamin: "Pria",
     tanggalPemeriksaanDate: "12/13/2025",
@@ -231,7 +230,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "5647382910",
+    idPeserta: "5647382910",
     nama: "Beta",
     jenisKelamin: "Wanita",
     tanggalPemeriksaanDate: "12/15/2025",
@@ -276,7 +275,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "0192837465",
+    idPeserta: "0192837465",
     nama: "Charlie",
     jenisKelamin: "Pria",
     tanggalPemeriksaanDate: "12/15/2025",
@@ -321,7 +320,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "6574839201",
+    idPeserta: "6574839201",
     nama: "Delta",
     jenisKelamin: "Pria",
     tanggalPemeriksaanDate: "12/15/2025",
@@ -366,7 +365,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "4756382910",
+    idPeserta: "4756382910",
     nama: "Echo",
     jenisKelamin: "Pria",
     tanggalPemeriksaanDate: "12/13/2025",
@@ -411,7 +410,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "7465839201",
+    idPeserta: "7465839201",
     nama: "Foxtrot",
     jenisKelamin: "Wanita",
     tanggalPemeriksaanDate: "12/12/2025",
@@ -456,7 +455,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "1234567890",
+    idPeserta: "1234567890",
     nama: "Golf",
     jenisKelamin: "Pria",
     tanggalPemeriksaanDate: "12/14/2025",
@@ -501,7 +500,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "0123456789",
+    idPeserta: "0123456789",
     nama: "Hotel",
     jenisKelamin: "Wanita",
     tanggalPemeriksaanDate: "12/14/2025",
@@ -546,7 +545,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "1029384756",
+    idPeserta: "1029384756",
     nama: "India",
     jenisKelamin: "Wanita",
     tanggalPemeriksaanDate: "12/13/2025",
@@ -591,7 +590,7 @@ export const PARTICIPANTS: ParticipantData[] = [
     },
   },
   {
-    nomorId: "5647382910",
+    idPeserta: "5647382910",
     nama: "Juliet",
     jenisKelamin: "Wanita",
     tanggalPemeriksaanDate: "12/15/2025",

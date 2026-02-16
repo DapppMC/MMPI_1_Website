@@ -125,9 +125,9 @@ export const PatientReport: React.FC<{ data: ParticipantData }> = ({
           <div className="space-y-3 print:space-y-1">
             <div>
               <span className="text-gray-500 block text-xs uppercase">
-                Nomor ID
+                ID Peserta
               </span>
-              <span className="font-semibold">{data.nomorId}</span>
+              <span className="font-semibold">{data.idPasien}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">

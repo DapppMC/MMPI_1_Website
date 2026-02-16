@@ -1,29 +1,19 @@
-// src/constants/questions.ts
+// src/api/questions.ts
+// (Note: Consider renaming this from 'constants' to 'api' since it relies on network calls now)
 
-// Add your real questions here.
-// If the list is shorter than 566, the code below will auto-fill the rest for testing.
-const MANUAL_QUESTIONS = [
-  "Aku merasa sehat-sehat saja.",
-  "Nafsu makanku baik.",
-  "Aku bangun dengan rasa segar di pagi hari.",
-  "Aku suka bekerja sebagai pustakawan.",
-  "Aku mudah terbangun oleh suara berisik.",
-  "Aku senang membaca berita kejahatan di surat kabar.",
-  "Tangan dan kakiku biasanya terasa cukup hangat.",
-  "Kehidupanku sehari-hari terisi dengan hal-hal yang menyenangkan.",
-  "Aku sanggup bekerja sebagaimana biasanya.",
-  "Aku sering merasa seolah-olah ada yang menyumbat di leherku.",
-  "Seseorang harus berusaha memahami mimpinya sebagai petunjuk dan peringatan.",
-  "Aku senang cerita detektif atau cerita misteri.",
-  "Aku bekerja dalam ketegangan yang sangat besar.",
-  "Aku suka mencret-mencret sebulan sekali atau lebih.",
-  "Kadang-kadang aku merasa ingin memaki-maki orang.",
-];
+export const fetchMMPIQuestions = async (): Promise<string[]> => {
+  try {
+    const response = await fetch("http://localhost:3000/api/soal");
+    if (!response.ok) throw new Error("Failed to fetch questions");
 
-// Helper to generate 566 questions (filling the rest with placeholders)
-export const MMPI_QUESTIONS: string[] = Array.from({ length: 566 }, (_, i) => {
-  if (i < MANUAL_QUESTIONS.length) {
-    return MANUAL_QUESTIONS[i];
+    // Assuming your Node server returns an array of objects: [{ soal: "Aku merasa sehat..." }]
+    const data = await response.json();
+
+    // Map it to just an array of strings like your original logic expects
+    return data.map((item: { soal: string }) => item.soal);
+  } catch (error) {
+    console.error("Error loading questions from DB:", error);
+    // Fallback or empty array if the server fails
+    return [];
   }
-  return `Pertanyaan Placeholder Nomor ${i + 1} (Isi database pertanyaan asli di sini)`;
-});
+};

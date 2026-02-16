@@ -59,7 +59,7 @@ const PreviewCetak: React.FC<PreviewCetakProps> = ({ dataToPrint, onBack }) => {
               {/* Optional: Add Logo or ID here */}
               <div className="text-right">
                 <span className="text-xs text-gray-400">
-                  ID: {patient.nomorId}
+                  ID: {patient.idPeserta}
                 </span>
               </div>
             </div>

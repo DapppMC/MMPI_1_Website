@@ -1,6 +1,6 @@
 // src/pages/DaftarPeserta.tsx
 import React, { useState, useEffect } from "react";
-import { PARTICIPANTS, type ParticipantData } from "../data/participants";
+import { type ParticipantData } from "../data/participants";
 
 // --- Icons Import ---
 import IconMoreVert from "../assets/icons/light_mode/more_vert.svg";
@@ -24,17 +24,39 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
   onViewDetail,
   onPrintMode,
 }) => {
+  // --- NEW: State for Database Data ---
+  const [participants, setParticipants] = useState<ParticipantData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  // Dropdown State: Stores the INDEX of the currently open row
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
     null,
   );
 
+  // --- NEW: Fetch Data from Node Server ---
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      try {
+        // Replace 3000 with whatever port your Node server runs on
+        const response = await fetch("http://localhost:3000/api/peserta");
+        if (!response.ok) throw new Error("Network response was not ok");
+        const data = await response.json();
+        setParticipants(data);
+      } catch (error) {
+        console.error("Failed to fetch participants:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchParticipants();
+  }, []);
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = PARTICIPANTS.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(PARTICIPANTS.length / itemsPerPage);
+  const currentItems = participants.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(participants.length / itemsPerPage);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -72,11 +94,11 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
           <tbody className="text-sm text-invert-gray-6">
             {currentItems.map((item, index) => (
               <tr
-                key={`${item.nomorId}-${index}`}
+                key={`${item.idPeserta}-${index}`}
                 className="even:bg-gray-5 odd:bg-white hover:bg-gray-2 transition-colors duration-150 h-12 border-b border-gray-1 last:border-0"
               >
                 <td className="pl-6 pr-4 py-3 font-medium text-invert-gray-5">
-                  {item.nomorId}
+                  {item.idPeserta}
                 </td>
                 <td className="px-4 py-3">{item.nama}</td>
                 <td className="px-4 py-3">{item.jenisKelamin}</td>
@@ -268,6 +290,6 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
       </div>
     </div>
   );
-};
+};;
 
 export default DaftarPeserta;

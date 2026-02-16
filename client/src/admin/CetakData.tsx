@@ -66,12 +66,12 @@ const CetakData: React.FC<CetakDataProps> = ({ onCancel, onPrint }) => {
 
               return (
                 <tr
-                  key={`${item.nomorId}-${globalIndex}`} // Ensure key is unique using index
+                  key={`${item.idPeserta}-${globalIndex}`} // Ensure key is unique using index
                   className="even:bg-gray-5 odd:bg-white hover:bg-gray-2 transition-colors duration-150 h-12 border-b border-gray-1 last:border-0 cursor-pointer"
                   onClick={() => toggleSelection(globalIndex)}
                 >
                   <td className="pl-6 pr-4 py-3 font-medium text-invert-gray-5">
-                    {item.nomorId}
+                    {item.idPeserta}
                   </td>
                   <td className="px-4 py-3">{item.nama}</td>
                   <td className="px-4 py-3">{item.jenisKelamin}</td>
