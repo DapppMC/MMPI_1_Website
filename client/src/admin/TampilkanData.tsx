@@ -1,5 +1,5 @@
 // src/admin/TampilkanData.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { type ParticipantData, type MmpiScore } from "../data/participants";
 import IconArrowPrev from "../assets/icons/light_mode/arrow_prev.svg";
 
@@ -25,7 +25,11 @@ const getKCorrection = (kRaw: number, scale: string): number => {
 export const PatientReport: React.FC<{ data: ParticipantData }> = ({
   data,
 }) => {
+  // Gracefully handle undefined output just in case
   const output = data.hasil_output || {};
+
+  console.log("Data Pasien: ");
+  console.log(data);
 
   const getScore = (key: keyof typeof output): MmpiScore => {
     return (output[key] as MmpiScore) || { raw: 0, t: 0 };
@@ -33,6 +37,9 @@ export const PatientReport: React.FC<{ data: ParticipantData }> = ({
 
   const kScore = getScore("K");
   const kRaw = kScore.raw;
+
+  console.log("kScore: ");
+  console.log(kScore);
 
   const validityScales = ["L", "F", "K"];
   const clinicalScales = [
@@ -127,29 +134,33 @@ export const PatientReport: React.FC<{ data: ParticipantData }> = ({
               <span className="text-gray-500 block text-xs uppercase">
                 ID Peserta
               </span>
-              <span className="font-semibold">{data.idPasien}</span>
+              <span className="font-semibold">{data.idPeserta || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Nama Lengkap
               </span>
-              <span className="font-semibold">{data.nama}</span>
+              <span className="font-semibold">{data.nama || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">NIK</span>
-              <span className="font-semibold">{data.nik}</span>
+              <span className="font-semibold">{data.nik || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Jenis Kelamin
               </span>
-              <span className="font-semibold">{data.jenisKelamin}</span>
+              <span className="font-semibold">{data.jenisKelamin || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Tanggal Lahir
               </span>
-              <span className="font-semibold">{data.tanggalLahir}</span>
+              <span className="font-semibold">
+                {data.tanggalLahir
+                  ? new Date(data.tanggalLahir).toLocaleDateString("id-ID")
+                  : "-"}
+              </span>
             </div>
           </div>
           <div className="space-y-3 print:space-y-1">
@@ -157,33 +168,41 @@ export const PatientReport: React.FC<{ data: ParticipantData }> = ({
               <span className="text-gray-500 block text-xs uppercase">
                 Tujuan Pemeriksaan
               </span>
-              <span className="font-semibold">{data.tujuanPemeriksaan}</span>
+              <span className="font-semibold">
+                {data.tujuanPemeriksaan || "-"}
+              </span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Tanggal Pemeriksaan
               </span>
               <span className="font-semibold">
-                {data.tanggalPemeriksaanDate}
+                {data.tanggalPemeriksaanDate
+                  ? new Date(data.tanggalPemeriksaanDate).toLocaleDateString(
+                      "id-ID",
+                    )
+                  : "-"}
               </span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Durasi
               </span>
-              <span className="font-semibold">{data.durasiPengerjaan}</span>
+              <span className="font-semibold">
+                {data.durasiPengerjaan || "-"}
+              </span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Pendidikan
               </span>
-              <span className="font-semibold">{data.pendidikan}</span>
+              <span className="font-semibold">{data.pendidikan || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Pekerjaan
               </span>
-              <span className="font-semibold">{data.pekerjaan}</span>
+              <span className="font-semibold">{data.pekerjaan || "-"}</span>
             </div>
           </div>
           <div className="space-y-3 print:space-y-1">
@@ -191,25 +210,27 @@ export const PatientReport: React.FC<{ data: ParticipantData }> = ({
               <span className="text-gray-500 block text-xs uppercase">
                 Suku Bangsa
               </span>
-              <span className="font-semibold">{data.sukuBangsa}</span>
+              <span className="font-semibold">{data.sukuBangsa || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Status Perkawinan
               </span>
-              <span className="font-semibold">{data.statusPerkawinan}</span>
+              <span className="font-semibold">
+                {data.statusPerkawinan || "-"}
+              </span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Nomor HP
               </span>
-              <span className="font-semibold">{data.nomorHp}</span>
+              <span className="font-semibold">{data.nomorHp || "-"}</span>
             </div>
             <div>
               <span className="text-gray-500 block text-xs uppercase">
                 Alamat
               </span>
-              <span className="font-semibold">{data.alamat}</span>
+              <span className="font-semibold">{data.alamat || "-"}</span>
             </div>
           </div>
         </div>
@@ -298,17 +319,64 @@ export const PatientReport: React.FC<{ data: ParticipantData }> = ({
 
 // --- Main TampilkanData Component ---
 const TampilkanData: React.FC<{
-  data: ParticipantData;
+  data: ParticipantData; // This is the shallow data passed from Dashboard
   onBack: () => void;
 }> = ({ data, onBack }) => {
+  // --- NEW: State for the Full Database Profile ---
+  const [fullProfile, setFullProfile] = useState<ParticipantData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- NEW: Fetch Deep Data on Mount ---
+  useEffect(() => {
+    const fetchDeepData = async () => {
+      if (!data?.idPeserta) return;
+
+      try {
+        const response = await fetch(
+          "http://localhost:3000/api/peserta/report",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            // Send an array with just the single ID
+            body: JSON.stringify({ ids: [data.idPeserta] }),
+          },
+        );
+
+        if (!response.ok)
+          throw new Error("Failed to fetch full patient profile");
+
+        const resultData = await response.json();
+
+        // The API returns an array, so we grab the first (and only) result
+        if (resultData && resultData.length > 0) {
+          setFullProfile(resultData[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching deep profile:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDeepData();
+  }, [data]);
+
+  if (isLoading) {
+    return (
+      <div className="flex w-full h-full items-center justify-center font-sans text-gray-500 mt-10">
+        Memuat detail lengkap peserta...
+      </div>
+    );
+  }
+
+  // If the fetch fails or the patient doesn't exist, fallback to the shallow data so the screen doesn't completely break
+  const displayData = fullProfile || data;
+
   return (
     <div className="flex flex-col w-full h-full font-sans bg-white">
-      {/* Removed the header from here because Dashboard handles breadcrumbs usually, 
-           but based on previous prompts I should keep the layout consistent if it wasn't moved to Dashboard completely.
-           The prompt said "Dashboard handles breadcrumbs" but in the code provided, TampilkanData doesn't have the header anymore 
-           or it's controlled by Dashboard. I will respect the structure provided in the prompt's code snippet. 
-       */}
-      <PatientReport data={data} />
+      <PatientReport data={displayData} />
 
       <div className="flex justify-end mt-4">
         <button

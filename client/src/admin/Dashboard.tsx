@@ -1,7 +1,7 @@
 // src/admin/Dashboard.tsx
 import React, { useState, useEffect, useRef } from "react";
 
-// --- Icons Import (Kept same as your code) ---
+// --- Icons Import ---
 import menuCloseIcon from "../assets/icons/light_mode/menu_close.svg";
 import menuOpenIcon from "../assets/icons/light_mode/menu_open.svg";
 import personIcon from "../assets/icons/light_mode/person.svg";
@@ -31,12 +31,12 @@ import PengisianDataDiri, {
 import PengisianDataTest from "./PengisianDataTest";
 import DaftarPeserta from "./DaftarPeserta";
 import TampilkanData from "./TampilkanData";
-import CetakData from "./CetakData"; // [NEW IMPORT]
+import CetakData from "./CetakData";
 import PreviewCetak from "./PreviewCetak";
 import { type ParticipantData } from "../data/participants";
-import { PARTICIPANTS } from "../data/participants";
+// REMOVED static PARTICIPANTS import since we use the database now
 
-// --- Helper Component (Kept same) ---
+// --- Helper Component ---
 interface SidebarItemProps {
   label: string;
   defaultIcon: string;
@@ -110,7 +110,7 @@ const AdminDashboard: React.FC = () => {
   const [pengisianData, setPengisianData] =
     useState<PengisianDataVariables | null>(null);
 
-  // 5. [NEW] State for Daftar Peserta View Mode
+  // 5. State for Daftar Peserta View Mode
   const [pesertaViewMode, setPesertaViewMode] = useState<
     "list" | "detail" | "print" | "preview"
   >("list");
@@ -149,13 +149,11 @@ const AdminDashboard: React.FC = () => {
     setPengisianPhase(2);
   };
 
-  // [NEW] Handler when "Tampilkan Data" is clicked in the child component
   const handleViewDetail = (participant: ParticipantData) => {
     setSelectedParticipant(participant);
     setPesertaViewMode("detail");
   };
 
-  // [NEW] Handler to go back to list
   const handleBackToList = () => {
     setPesertaViewMode("list");
     setSelectedParticipant(null);
@@ -165,14 +163,12 @@ const AdminDashboard: React.FC = () => {
     setPesertaViewMode("print");
   };
 
-  const handleExecutePrint = (selectedIndices: number[]) => {
-    // Map indices to actual data
-    const data = selectedIndices.map((index) => PARTICIPANTS[index]);
-    setDataToPrint(data);
-    setPesertaViewMode("preview"); // Switch to preview mode
+  // [UPDATED] Now accepts the actual data array instead of indices
+  const handleExecutePrint = (selectedData: ParticipantData[]) => {
+    setDataToPrint(selectedData);
+    setPesertaViewMode("preview");
   };
 
-  // Helper to render content based on selection
   const renderContent = () => {
     switch (selectedFeature) {
       case "pengisian":
@@ -182,11 +178,9 @@ const AdminDashboard: React.FC = () => {
           return <PengisianDataTest />;
         }
       case "peserta":
-        // [UPDATE] Logic to switch between List and Detail view
         if (pesertaViewMode === "detail" && selectedParticipant) {
           return (
             <div className="flex flex-col gap-6">
-              {/* Header with Breadcrumb extended */}
               <h2 className="text-lg font-bold flex items-center gap-2">
                 <span className="text-black">MMPI</span>
                 <span className="text-gray-3 font-normal">&rsaquo;</span>
@@ -199,7 +193,6 @@ const AdminDashboard: React.FC = () => {
                 <span className="text-gray-3 font-normal">&rsaquo;</span>
                 <span className="text-black">Detail</span>
               </h2>
-              {/* Render The Placeholder Page */}
               <TampilkanData
                 data={selectedParticipant}
                 onBack={handleBackToList}
@@ -208,7 +201,6 @@ const AdminDashboard: React.FC = () => {
           );
         }
 
-        // 2. PRINT VIEW
         if (pesertaViewMode === "print") {
           return (
             <div className="flex flex-col gap-6">
@@ -231,9 +223,8 @@ const AdminDashboard: React.FC = () => {
             </div>
           );
         }
+
         if (pesertaViewMode === "preview") {
-          // We hide the standard dashboard header/breadcrumbs for the preview to look like a clean print preview page
-          // or we can keep them. Usually print preview takes over the whole main area.
           return (
             <PreviewCetak
               dataToPrint={dataToPrint}
@@ -242,7 +233,6 @@ const AdminDashboard: React.FC = () => {
           );
         }
 
-        // Default List View
         return (
           <div className="flex flex-col gap-6">
             <h2 className="text-lg font-bold flex items-center gap-2">
@@ -250,7 +240,6 @@ const AdminDashboard: React.FC = () => {
               <span className="text-gray-3 font-normal">&rsaquo;</span>
               <span className="text-black">Daftar Peserta</span>
             </h2>
-            {/* Pass the handler to the table */}
             <DaftarPeserta
               onViewDetail={handleViewDetail}
               onPrintMode={handlePrintMode}
@@ -268,7 +257,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-full font-sans overflow-hidden bg-white text-black print:h-auto print:overflow-visible">
-      {/* FIX 1: Added 'print:hidden' to Header */}
       <header className="h-[10%] w-full bg-gray-5 border-b border-gray-6 flex items-center justify-between px-6 shrink-0 z-20 relative print:hidden">
         <div className="flex items-center gap-4">
           <button
@@ -341,9 +329,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* --- 2. Main Body --- */}
       <div className="flex h-[90%] w-full relative print:h-auto print:overflow-visible">
-        {/* FIX 1: Added 'print:hidden' to Sidebar */}
         <aside
           className={`
             bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out print:hidden
@@ -400,8 +386,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         </aside>
 
-        {/* --- Content Area --- */}
-        {/* FIX 2 & 1: Added print classes to ensure it takes full width and doesn't scroll */}
         <main className="flex-1 bg-white relative overflow-auto p-8 transition-all duration-300 print:overflow-visible print:h-auto print:p-0 print:absolute print:top-0 print:left-0 print:w-full print:z-50">
           {renderContent()}
         </main>

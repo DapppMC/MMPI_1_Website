@@ -86,7 +86,7 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
               <th className="pl-6 pr-4 py-3 rounded-tl-lg">Nomor ID</th>
               <th className="px-4 py-3">Nama Peserta</th>
               <th className="px-4 py-3">Jenis Kelamin</th>
-              <th className="px-4 py-3">Tanggal Pemeriksaan</th>
+              <th className="px-4 py-3">Tanggal Pemeriksaan (DD/MM/YYYY)</th>
               <th className="pl-4 pr-6 py-3 rounded-tr-lg w-10"></th>
             </tr>
           </thead>
@@ -102,7 +102,17 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
                 </td>
                 <td className="px-4 py-3">{item.nama}</td>
                 <td className="px-4 py-3">{item.jenisKelamin}</td>
-                <td className="px-4 py-3">{item.tanggalPemeriksaanDate}</td>
+                <td className="px-4 py-3">
+                  {new Date(item.tanggalPemeriksaanDate).toLocaleDateString(
+                    "id-ID",
+                    {
+                      timeZone: "Asia/Jakarta",
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                    },
+                  )}
+                </td>
 
                 {/* Actions Column */}
                 <td className="pl-4 pr-6 py-3 text-right">
