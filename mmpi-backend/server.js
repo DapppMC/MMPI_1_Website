@@ -10,6 +10,7 @@ const port = 3000;
 // Import Route Files
 const pesertaRoutes = require('./routes/pesertaRoutes');
 const soalRoutes = require('./routes/soalRoutes');
+const submissionRoutes = require('./routes/submissionRoutes');
 
 // Middleware
 app.use(cors());
@@ -24,6 +25,7 @@ db.connect()
 // Note: We mount them at '/api' so we don't need to write '/api' in the route files
 app.use('/api', pesertaRoutes);
 app.use('/api', soalRoutes);
+app.use('/api', submissionRoutes);
 
 app.listen(port, () => {
   console.log(`Node server is running on http://localhost:${port}`);

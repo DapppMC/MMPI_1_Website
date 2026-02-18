@@ -169,13 +169,30 @@ const AdminDashboard: React.FC = () => {
     setPesertaViewMode("preview");
   };
 
+  // [NEW] Handler called when the test is successfully submitted
+  const handleTestFinished = () => {
+    // 1. Clear Local Storage for the next user
+    localStorage.removeItem("mmpi_full_data");
+    localStorage.removeItem("mmpi_phase1_data");
+    localStorage.removeItem("mmpi_shuffle_map");
+
+    // 2. Reset the input phase back to step 1 (Data Diri)
+    setPengisianPhase(1);
+    setPengisianData(null);
+
+    // 3. Switch the view to "Daftar Peserta" so the user can see the result
+    setSelectedFeature("peserta");
+    setPesertaViewMode("list");
+  };
+
   const renderContent = () => {
     switch (selectedFeature) {
       case "pengisian":
         if (pengisianPhase === 1) {
           return <PengisianDataDiri onNext={handlePengisianNext} />;
         } else {
-          return <PengisianDataTest />;
+          // [UPDATE] Pass the handleTestFinished callback here!
+          return <PengisianDataTest onFinish={handleTestFinished} />;
         }
       case "peserta":
         if (pesertaViewMode === "detail" && selectedParticipant) {
@@ -392,6 +409,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};
+};;
 
 export default AdminDashboard;

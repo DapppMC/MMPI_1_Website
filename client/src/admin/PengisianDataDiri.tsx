@@ -56,6 +56,8 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
     };
   });
 
+  const [isSaving, setIsSaving] = useState(false); // [NEW] Loading State
+
   // 2. Save to LocalStorage whenever formData changes (Real-time persistence)
   useEffect(() => {
     localStorage.setItem("mmpi_phase1_data", JSON.stringify(formData));
@@ -104,27 +106,46 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
     return isValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // [UPDATED] Async Submit Handler
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      // --- REQUIREMENT 2a & 2b: Save Data + Test Placeholders to JSON (LocalStorage) ---
+    if (!validateForm()) return;
 
-      // Create the comprehensive JSON structure
+    setIsSaving(true); // Start loading
+
+    try {
+      // 1. Send data to PostgreSQL
+      const response = await fetch("http://localhost:3000/api/pasien", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal menyimpan data ke server");
+      }
+
+      // 2. Prepare LocalStorage for the Test Phase (still needed for session state)
       const finalJsonData = {
         ...formData,
-        // Initialize 566 boolean questions (defaulting to null or false as placeholders)
+        idPeserta: formData.nomorId, // Ensure consistency with key names!
         testAnswers: Array(566).fill(null),
       };
 
-      // Save to localStorage (acting as our "JSON file" persistence layer)
       localStorage.setItem("mmpi_full_data", JSON.stringify(finalJsonData));
+      console.log("Data Saved to DB & LocalStorage:", finalJsonData);
 
-      console.log("Data Saved to Storage:", finalJsonData);
-
-      // --- REQUIREMENT 3: Navigate (Trigger Parent) ---
+      // 3. Move to next phase
       onNext(formData);
-    } else {
-      // Optional: Trigger a shake animation or scroll to top
+    } catch (error) {
+      console.error("Submission Error:", error);
+      alert(
+        "Terjadi kesalahan saat menyimpan data. Pastikan server backend berjalan.",
+      );
+    } finally {
+      setIsSaving(false); // Stop loading
     }
   };
 
@@ -546,6 +567,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
       </div>
     </div>
   );
-};
+};;
 
 export default PengisianDataDiri;

@@ -4,10 +4,15 @@ import { fetchMMPIQuestions } from "../constants/questions";
 import chevronRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
 import errorIcon from "../assets/icons/error.svg";
 
-interface Props {}
+// [UPDATE] Add onFinish to the props interface
+interface Props {
+  onFinish: () => void;
+}
+
 const TOTAL_QUESTIONS = 566;
 
-const PengisianDataTest: React.FC<Props> = () => {
+// [UPDATE] Destructure onFinish from props
+const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   // 1. Get Patient info upfront
   const savedData = localStorage.getItem("mmpi_full_data");
   const parsedData = savedData ? JSON.parse(savedData) : {};
@@ -46,11 +51,9 @@ const PengisianDataTest: React.FC<Props> = () => {
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Fetch Questions
         const qData = await fetchMMPIQuestions();
         setQuestions(qData);
 
-        // Fetch Existing Progress from jawaban_temp
         const progressRes = await fetch(
           `http://localhost:3000/api/jawaban-temp/${pasienId}`,
         );
@@ -58,7 +61,6 @@ const PengisianDataTest: React.FC<Props> = () => {
           const progressData = await progressRes.json();
           const loadedAnswers = Array(TOTAL_QUESTIONS).fill(null);
 
-          // Map DB records back into our local array
           progressData.forEach((item: any) => {
             loadedAnswers[item.soal_id - 1] = item.jawaban === "T";
           });
@@ -86,7 +88,6 @@ const PengisianDataTest: React.FC<Props> = () => {
         );
         setAnswers(dummyAnswers);
 
-        // Push bulk to database
         await fetch("http://localhost:3000/api/jawaban-temp/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -114,11 +115,9 @@ const PengisianDataTest: React.FC<Props> = () => {
     });
   };
 
-  // --- NEW: SAVE PROGRESS ON NAVIGATION ---
   const changeQuestionAndSave = async (newDisplayIdx: number) => {
     const answerToSave = answers[realQuestionIdx];
 
-    // Only save if an answer is actually selected
     if (answerToSave !== null) {
       try {
         await fetch("http://localhost:3000/api/jawaban-temp", {
@@ -126,7 +125,7 @@ const PengisianDataTest: React.FC<Props> = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             pasien_id: pasienId,
-            soal_id: realQuestionIdx + 1, // +1 because database IDs start at 1
+            soal_id: realQuestionIdx + 1,
             jawaban: answerToSave ? "T" : "F",
           }),
         });
@@ -134,8 +133,6 @@ const PengisianDataTest: React.FC<Props> = () => {
         console.error("Gagal menyimpan progress:", err);
       }
     }
-
-    // Move to next screen regardless of save success
     setCurrentDisplayIdx(newDisplayIdx);
   };
 
@@ -144,16 +141,27 @@ const PengisianDataTest: React.FC<Props> = () => {
   };
 
   // --- FINAL SUBMIT ---
+  // --- FINAL SUBMIT ---
   const handleConfirmSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Just tell the backend who is submitting. The backend will pull everything else from the DB!
+      const savedData = localStorage.getItem("mmpi_full_data");
+      const parsedData = savedData ? JSON.parse(savedData) : {};
+
+      const pasienId = parsedData.idPeserta || "xyz-123";
+      const mappedGender =
+        parsedData.jenisKelamin === "Wanita" ? "Female" : "Male";
+
+      // [NEW] Extract the duration from the saved biodata
+      const durasi = parsedData.durasiPengerjaan || "-";
+
       const response = await fetch("http://localhost:3000/api/submit-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pasien_id: pasienId,
           gender: mappedGender,
+          durasi: durasi, // [NEW] Send it to the backend
         }),
       });
 
@@ -166,6 +174,7 @@ const PengisianDataTest: React.FC<Props> = () => {
         "Test Selesai! Data berhasil di proses oleh bot dan disimpan ke database.",
       );
       setIsModalOpen(false);
+      onFinish();
     } catch (error) {
       console.error("Submission error:", error);
       alert("Terjadi kesalahan saat memproses data ke DOSBox.");
@@ -189,6 +198,7 @@ const PengisianDataTest: React.FC<Props> = () => {
 
   return (
     <div className="relative flex flex-col h-full w-full max-w-7xl mx-auto overflow-hidden">
+      {/* Header and Content (Kept same as provided) */}
       <div className="mb-6 shrink-0">
         <h2 className="text-xl font-bold flex items-center gap-2 text-black">
           <span>MMPI</span>
@@ -200,6 +210,7 @@ const PengisianDataTest: React.FC<Props> = () => {
       </div>
 
       <div className="flex-1 flex gap-8 overflow-hidden">
+        {/* Left Column */}
         <div className="w-2/3 flex flex-col gap-6">
           <div className="bg-white rounded-xl p-1">
             <h3 className="text-xl font-bold mb-4 text-black pl-1">
@@ -247,7 +258,6 @@ const PengisianDataTest: React.FC<Props> = () => {
 
           <div className="mt-auto flex justify-between items-center w-full">
             <div className="flex gap-4">
-              {/* USE THE NEW SAVE WRAPPER ON BUTTONS */}
               <button
                 onClick={() =>
                   changeQuestionAndSave(Math.max(0, currentDisplayIdx - 1))
@@ -283,6 +293,7 @@ const PengisianDataTest: React.FC<Props> = () => {
           </div>
         </div>
 
+        {/* Right Column */}
         <div className="w-1/3 flex flex-col bg-gray-50 border-l border-gray-200 pl-8">
           <div className="mb-4">
             <h3 className="font-bold text-lg mb-1">Navigasi Soal</h3>
@@ -295,7 +306,6 @@ const PengisianDataTest: React.FC<Props> = () => {
               {shuffledIndices.map((_, displayIndex) => (
                 <div
                   key={displayIndex}
-                  /* USE THE NEW SAVE WRAPPER ON THE GRID TOO */
                   onClick={() =>
                     !isLoadingQuestions && changeQuestionAndSave(displayIndex)
                   }
@@ -386,6 +396,6 @@ const PengisianDataTest: React.FC<Props> = () => {
       )}
     </div>
   );
-};
+};;
 
 export default PengisianDataTest;

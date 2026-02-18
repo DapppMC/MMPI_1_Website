@@ -3,7 +3,8 @@ const db = require('../config/db');
 
 // This function handles ONLY the logic for submitting the test
 const submitTest = async (req, res) => {
-  const { pasien_id, gender } = req.body; 
+  // [FIX 1] Extract 'durasi' from the frontend request
+  const { pasien_id, gender, durasi } = req.body; 
 
   if (!pasien_id || !gender) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -22,9 +23,11 @@ const submitTest = async (req, res) => {
     const jawabanFixString = tempAnswers.rows.map(row => row.jawaban).join('');
     const booleanAnswers = tempAnswers.rows.map(row => row.jawaban === 'T'); 
     
-    // --- UPGRADE: Delete old attempts before saving new ones ---
+    // Cleanup old data
     await db.query('DELETE FROM jawaban_fix WHERE pasien_id = $1', [pasien_id]);
+    await db.query('DELETE FROM test_output WHERE pasien_id = $1', [pasien_id]);
     
+    // Save Fixed Answers
     await db.query(
       `INSERT INTO jawaban_fix (pasien_id, jawaban_fix, is_sent) VALUES ($1, $2, $3)`,
       [pasien_id, jawabanFixString, true]
@@ -32,6 +35,7 @@ const submitTest = async (req, res) => {
 
     console.log(`[BOT] Waking up Python DOSBox bot for patient: ${pasien_id}...`);
     
+    // Call Python Microservice
     const pythonResponse = await fetch('http://127.0.0.1:8000/process-mmpi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -46,14 +50,13 @@ const submitTest = async (req, res) => {
     
     if (pythonData.status === "success") {
       const scoresJson = JSON.stringify(pythonData.scores);
-      const durasi = "01.30 (one hour and thirty minutes)"; 
       
-      // --- UPGRADE: Delete old output before saving new ones ---
-      await db.query('DELETE FROM test_output WHERE pasien_id = $1', [pasien_id]);
-
+      // [FIX 2] Use the real duration from the frontend, or fallback to "-"
+      const finalDurasi = durasi || "-"; 
+      
       await db.query(
         `INSERT INTO test_output (pasien_id, hasil_output_ms, durasi_pengerjaan) VALUES ($1, $2, $3)`,
-        [pasien_id, scoresJson, durasi]
+        [pasien_id, scoresJson, finalDurasi] // Use finalDurasi here!
       );
 
       console.log(`[SUCCESS] Scores saved for patient: ${pasien_id}`);

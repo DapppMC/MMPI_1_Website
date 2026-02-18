@@ -59,4 +59,56 @@ const getPesertaReport = async (req, res) => {
   }
 };
 
-module.exports = { getAllPeserta, getPesertaReport };
+// 3. Create or update patient biodata (NEW)
+const upsertPeserta = async (req, res) => {
+  const { 
+    nomorId, nama, nik, jenisKelamin, tanggalLahir, 
+    tempatLahir, // Assuming you might have this, but not in your interface yet
+    alamat, statusPerkawinan, pendidikan, pekerjaan, 
+    sukuBangsa, agama, nomorHp, tujuanPemeriksaan, 
+    tanggalPemeriksaanDate, tanggalPemeriksaanTime 
+  } = req.body;
+
+  try {
+    // Upsert logic: If ID exists, update it. If not, insert it.
+    const query = `
+      INSERT INTO pasien (
+        pasien_id, nama, nik, jenis_kelamin, tanggal_lahir, 
+        alamat, status_perkawinan, pendidikan, pekerjaan, 
+        suku_bangsa, nomor_hp, tujuan_pemeriksaan, 
+        tanggal_pemeriksaan_date, tanggal_pemeriksaan_time
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ON CONFLICT (pasien_id) DO UPDATE SET
+        nama = EXCLUDED.nama,
+        nik = EXCLUDED.nik,
+        jenis_kelamin = EXCLUDED.jenis_kelamin,
+        tanggal_lahir = EXCLUDED.tanggal_lahir,
+        alamat = EXCLUDED.alamat,
+        status_perkawinan = EXCLUDED.status_perkawinan,
+        pendidikan = EXCLUDED.pendidikan,
+        pekerjaan = EXCLUDED.pekerjaan,
+        suku_bangsa = EXCLUDED.suku_bangsa,
+        nomor_hp = EXCLUDED.nomor_hp,
+        tujuan_pemeriksaan = EXCLUDED.tujuan_pemeriksaan,
+        tanggal_pemeriksaan_date = EXCLUDED.tanggal_pemeriksaan_date,
+        tanggal_pemeriksaan_time = EXCLUDED.tanggal_pemeriksaan_time;
+    `;
+
+    const values = [
+      nomorId, nama, nik, jenisKelamin, tanggalLahir, 
+      alamat, statusPerkawinan, pendidikan, pekerjaan, 
+      sukuBangsa, nomorHp, tujuanPemeriksaan, 
+      tanggalPemeriksaanDate, tanggalPemeriksaanTime
+    ];
+
+    await db.query(query, values);
+    res.json({ success: true, message: "Data pasien berhasil disimpan." });
+
+  } catch (err) {
+    console.error("Gagal menyimpan biodata:", err.message);
+    res.status(500).json({ error: "Gagal menyimpan biodata ke database." });
+  }
+};
+
+// Don't forget to export the new function!
+module.exports = { getAllPeserta, getPesertaReport, upsertPeserta };
