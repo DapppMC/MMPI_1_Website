@@ -29,6 +29,15 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   );
 
   const [shuffledIndices, setShuffledIndices] = useState<number[]>(() => {
+    // [NEW] Check if we are in edit mode
+    const isEditMode = localStorage.getItem("mmpi_edit_mode") === "true";
+
+    if (isEditMode) {
+      // Return a perfectly sequential array [0, 1, 2, 3...] (No Shuffling)
+      return Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
+    }
+
+    // Otherwise, do the standard random shuffle for a new test
     const savedShuffle = localStorage.getItem("mmpi_shuffle_map");
     if (savedShuffle) return JSON.parse(savedShuffle);
 

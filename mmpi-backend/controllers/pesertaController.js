@@ -35,6 +35,7 @@ const getPesertaReport = async (req, res) => {
         p.nama,
         p.jenis_kelamin AS "jenisKelamin",
         p.tanggal_pemeriksaan_date AS "tanggalPemeriksaanDate",
+        p.tanggal_pemeriksaan_time AS "tanggalPemeriksaanTime",
         p.tanggal_lahir AS "tanggalLahir",
         p.pendidikan,
         p.pekerjaan,

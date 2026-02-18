@@ -6,7 +6,7 @@ import arrowRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg"
 export interface PengisianDataVariables {
   nomorId: string;
   tujuanPemeriksaan: string;
-  durasiPengerjaan: string; // [New Field]
+  durasiPengerjaan: string; // Keep as string
   tanggalPemeriksaanDate: string;
   tanggalPemeriksaanTime: string;
   nik: string;
@@ -28,19 +28,41 @@ interface Props {
   onNext: (data: PengisianDataVariables) => void;
 }
 
+const isEditMode = localStorage.getItem("mmpi_edit_mode") === "true";
+
 const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
   // 1. Initialize State from LocalStorage if available
   const [formData, setFormData] = useState<PengisianDataVariables>(() => {
     const savedData = localStorage.getItem("mmpi_phase1_data");
     if (savedData) {
-      // Check if saved data has new field, if not, merge it
       const parsed = JSON.parse(savedData);
-      return { durasiPengerjaan: "", ...parsed };
+
+      console.log("Saved data: ");
+      console.log(parsed);
+
+      return {
+        nomorId: parsed.nomorId || "",
+        tujuanPemeriksaan: parsed.tujuanPemeriksaan || "",
+        durasiPengerjaan: parsed.durasiPengerjaan || "",
+        tanggalPemeriksaanDate: parsed.tanggalPemeriksaanDate || "",
+        tanggalPemeriksaanTime: parsed.tanggalPemeriksaanTime || "",
+        nik: parsed.nik || "",
+        nama: parsed.nama || "",
+        tanggalLahir: parsed.tanggalLahir || "",
+        jenisKelamin: parsed.jenisKelamin || "",
+        sukuBangsa: parsed.sukuBangsa || "",
+        pendidikan: parsed.pendidikan || "",
+        pekerjaan: parsed.pekerjaan || "",
+        statusPerkawinan: parsed.statusPerkawinan || "",
+        nomorHp: parsed.nomorHp || "",
+        alamat: parsed.alamat || "",
+      };
     }
+
     return {
       nomorId: "",
       tujuanPemeriksaan: "",
-      durasiPengerjaan: "", // [New Field Init]
+      durasiPengerjaan: "",
       tanggalPemeriksaanDate: "",
       tanggalPemeriksaanTime: "",
       nik: "",
@@ -56,17 +78,15 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
     };
   });
 
-  const [isSaving, setIsSaving] = useState(false); // [NEW] Loading State
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 2. Save to LocalStorage whenever formData changes (Real-time persistence)
+  // 2. Save to LocalStorage whenever formData changes
   useEffect(() => {
     localStorage.setItem("mmpi_phase1_data", JSON.stringify(formData));
   }, [formData]);
 
-  // State for Validation Errors
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Generic Change Handler
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -79,7 +99,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
       [name]: value,
     }));
 
-    // Clear error for this field immediately when user starts typing
     if (errors[name as keyof PengisianDataVariables]) {
       setErrors((prev) => ({
         ...prev,
@@ -88,7 +107,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
     }
   };
 
-  // Validation Logic
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     let isValid = true;
@@ -106,66 +124,55 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
     return isValid;
   };
 
-  // [UPDATED] Async Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
 
-    setIsSaving(true); // Start loading
+    if (!validateForm()) {
+      alert(
+        "Mohon lengkapi semua kolom yang bergaris merah sebelum melanjutkan.",
+      );
+      return;
+    }
 
+    setIsSaving(true);
     try {
-      // 1. Send data to PostgreSQL
       const response = await fetch("http://localhost:3000/api/pasien", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        throw new Error("Gagal menyimpan data ke server");
-      }
+      if (!response.ok) throw new Error("Gagal menyimpan data ke server");
 
-      // 2. Prepare LocalStorage for the Test Phase (still needed for session state)
       const finalJsonData = {
         ...formData,
-        idPeserta: formData.nomorId, // Ensure consistency with key names!
+        idPeserta: formData.nomorId,
         testAnswers: Array(566).fill(null),
       };
 
       localStorage.setItem("mmpi_full_data", JSON.stringify(finalJsonData));
-      console.log("Data Saved to DB & LocalStorage:", finalJsonData);
-
-      // 3. Move to next phase
       onNext(formData);
     } catch (error) {
       console.error("Submission Error:", error);
-      alert(
-        "Terjadi kesalahan saat menyimpan data. Pastikan server backend berjalan.",
-      );
+      alert("Terjadi kesalahan saat menyimpan data.");
     } finally {
-      setIsSaving(false); // Stop loading
+      setIsSaving(false);
     }
   };
 
-  // Helper to determine input class names based on error state
   const getInputClass = (fieldName: keyof PengisianDataVariables) => {
     const baseClass =
       "w-full p-3 border rounded-lg focus:outline-none transition-all";
 
     if (errors[fieldName]) {
-      // Error State: Red Ring & Red Border & Red Focus
       return `${baseClass} border-red-1 ring-1 ring-red-1 focus:ring-red-1`;
     }
 
-    // Normal State: Gray Border & Purple Focus
     return `${baseClass} border-gray-400 focus:ring-2 focus:ring-purple-2`;
   };
 
   return (
     <div className="flex flex-col h-full w-full max-w-5xl mx-auto">
-      {/* --- 1. Header / Breadcrumb --- */}
       <div className="mb-8 shrink-0">
         <h2 className="text-2xl font-bold flex items-center gap-2 text-black">
           <span>MMPI</span>
@@ -176,10 +183,8 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
         </h2>
       </div>
 
-      {/* --- 2. Scrollable Form Container --- */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 pb-4">
-          {/* Row: Nomor ID */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4 mt-2">
             <label className="font-bold text-sm text-black pt-3">
               Nomor ID
@@ -190,8 +195,9 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                 name="nomorId"
                 value={formData.nomorId}
                 onChange={handleChange}
+                disabled={isEditMode}
                 placeholder="Nomor ID peserta"
-                className={getInputClass("nomorId")}
+                className={`${getInputClass("nomorId")} ${isEditMode ? "bg-gray-100 cursor-not-allowed text-gray-500" : ""}`}
               />
               {errors.nomorId && (
                 <p className="text-red-1 text-xs mt-1 font-medium">
@@ -201,7 +207,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Tujuan Pemeriksaan */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Tujuan Pemeriksaan
@@ -223,7 +228,7 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Durasi Pengerjaan [NEW FIELD] */}
+          {/* [UPDATED] Durasi Pengerjaan is now type="text" */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Durasi Pengerjaan
@@ -234,7 +239,7 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                 name="durasiPengerjaan"
                 value={formData.durasiPengerjaan}
                 onChange={handleChange}
-                placeholder="Contoh: 60 Menit"
+                placeholder="Contoh: 60 Menit atau 01:30"
                 className={getInputClass("durasiPengerjaan")}
               />
               {errors.durasiPengerjaan && (
@@ -245,13 +250,11 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Tanggal Pemeriksaan (Split Date & Time) */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Tanggal Pemeriksaan
             </label>
             <div className="flex gap-4 w-full">
-              {/* Part 1: Date */}
               <div className="w-1/2">
                 <input
                   type="date"
@@ -266,7 +269,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                   </p>
                 )}
               </div>
-              {/* Part 2: Time */}
               <div className="w-1/2">
                 <input
                   type="time"
@@ -284,7 +286,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: NIK */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">NIK</label>
             <div className="w-full">
@@ -304,7 +305,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Nama */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">Nama</label>
             <div className="w-full">
@@ -324,7 +324,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Tanggal Lahir */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Tanggal Lahir
@@ -345,22 +344,14 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Jenis Kelamin (Radio) */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Jenis Kelamin
             </label>
             <div className="w-full">
               <div className="flex gap-4 w-full">
-                {/* Pria */}
                 <label
-                  className={`flex-1 flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                    formData.jenisKelamin === "Pria"
-                      ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2"
-                      : errors.jenisKelamin
-                        ? "border-red-1 ring-1 ring-red-1"
-                        : "border-gray-400"
-                  }`}
+                  className={`flex-1 flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${formData.jenisKelamin === "Pria" ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2" : errors.jenisKelamin ? "border-red-1 ring-1 ring-red-1" : "border-gray-400"}`}
                 >
                   <input
                     type="radio"
@@ -372,16 +363,8 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                   />
                   <span className="text-gray-700">Pria</span>
                 </label>
-
-                {/* Wanita */}
                 <label
-                  className={`flex-1 flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                    formData.jenisKelamin === "Wanita"
-                      ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2"
-                      : errors.jenisKelamin
-                        ? "border-red-1 ring-1 ring-red-1"
-                        : "border-gray-400"
-                  }`}
+                  className={`flex-1 flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${formData.jenisKelamin === "Wanita" ? "border-purple-2 bg-blue-50 ring-1 ring-purple-2" : errors.jenisKelamin ? "border-red-1 ring-1 ring-red-1" : "border-gray-400"}`}
                 >
                   <input
                     type="radio"
@@ -402,7 +385,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Suku Bangsa */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Suku Bangsa
@@ -424,7 +406,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Pendidikan */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Pendidikan
@@ -446,7 +427,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Pekerjaan */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Pekerjaan
@@ -468,7 +448,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Status Perkawinan */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Status Perkawinan
@@ -488,7 +467,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
                   <option value="Menikah">Menikah</option>
                   <option value="Sudah Berpisah">Sudah Berpisah</option>
                 </select>
-                {/* Custom Arrow Icon */}
                 <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                   <svg
                     className="w-5 h-5 text-gray-500"
@@ -513,7 +491,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Nomor HP */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">
               Nomor HP
@@ -535,7 +512,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
             </div>
           </div>
 
-          {/* Row: Alamat */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4">
             <label className="font-bold text-sm text-black pt-3">Alamat</label>
             <div className="w-full">
@@ -556,7 +532,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
         </form>
       </div>
 
-      {/* --- 3. Footer / Button --- */}
       <div className="mt-4 flex justify-end shrink-0 pt-4 border-t border-gray-200">
         <button
           onClick={handleSubmit}
@@ -567,6 +542,6 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
       </div>
     </div>
   );
-};;
+};
 
 export default PengisianDataDiri;

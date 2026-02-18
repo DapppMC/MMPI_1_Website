@@ -34,7 +34,6 @@ import TampilkanData from "./TampilkanData";
 import CetakData from "./CetakData";
 import PreviewCetak from "./PreviewCetak";
 import { type ParticipantData } from "../data/participants";
-// REMOVED static PARTICIPANTS import since we use the database now
 
 // --- Helper Component ---
 interface SidebarItemProps {
@@ -72,9 +71,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
         className="shrink-0 w-6 h-6"
       />
       <span
-        className={`whitespace-nowrap transition-opacity duration-200 ${
-          isSidebarOpen ? "opacity-100" : "opacity-0"
-        }`}
+        className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarOpen ? "opacity-100" : "opacity-0"}`}
       >
         {label}
       </span>
@@ -82,7 +79,6 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
-// --- Mock Content Components ---
 const ExportDataContent = () => (
   <h2 className="text-2xl font-bold">Konten Export Data</h2>
 );
@@ -93,24 +89,17 @@ const ImportDataContent = () => (
 const AdminDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  // 1. State for Selected Feature
   const [selectedFeature, setSelectedFeature] = useState<string>("pengisian");
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // 2. State for Pengisian Phase
   const [pengisianPhase, setPengisianPhase] = useState<1 | 2>(() => {
     const savedData = localStorage.getItem("mmpi_full_data");
     return savedData ? 2 : 1;
   });
 
-  // 3. State for Dark Mode
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // 4. Data State
   const [pengisianData, setPengisianData] =
     useState<PengisianDataVariables | null>(null);
 
-  // 5. State for Daftar Peserta View Mode
   const [pesertaViewMode, setPesertaViewMode] = useState<
     "list" | "detail" | "print" | "preview"
   >("list");
@@ -118,7 +107,6 @@ const AdminDashboard: React.FC = () => {
   const [selectedParticipant, setSelectedParticipant] =
     useState<ParticipantData | null>(null);
 
-  // Header Icons Hover
   const [hoverMenu, setHoverMenu] = useState(false);
   const [hoverPerson, setHoverPerson] = useState(false);
   const [hoverArrow, setHoverArrow] = useState(false);
@@ -140,13 +128,24 @@ const AdminDashboard: React.FC = () => {
     };
   }, [dropdownRef]);
 
-  const handleProfileClick = () => {
-    console.log("Navigate to Profile");
-  };
+  const handleProfileClick = () => console.log("Navigate to Profile");
 
   const handlePengisianNext = (data: PengisianDataVariables) => {
     setPengisianData(data);
     setPengisianPhase(2);
+  };
+
+  const handleTestFinished = () => {
+    // [UPDATED] Clear out the edit flag as well when a test finishes!
+    localStorage.removeItem("mmpi_full_data");
+    localStorage.removeItem("mmpi_phase1_data");
+    localStorage.removeItem("mmpi_shuffle_map");
+    localStorage.removeItem("mmpi_edit_mode");
+
+    setPengisianPhase(1);
+    setPengisianData(null);
+    setSelectedFeature("peserta");
+    setPesertaViewMode("list");
   };
 
   const handleViewDetail = (participant: ParticipantData) => {
@@ -159,30 +158,86 @@ const AdminDashboard: React.FC = () => {
     setSelectedParticipant(null);
   };
 
-  const handlePrintMode = () => {
-    setPesertaViewMode("print");
-  };
+  const handlePrintMode = () => setPesertaViewMode("print");
 
-  // [UPDATED] Now accepts the actual data array instead of indices
   const handleExecutePrint = (selectedData: ParticipantData[]) => {
     setDataToPrint(selectedData);
     setPesertaViewMode("preview");
   };
 
-  // [NEW] Handler called when the test is successfully submitted
-  const handleTestFinished = () => {
-    // 1. Clear Local Storage for the next user
-    localStorage.removeItem("mmpi_full_data");
-    localStorage.removeItem("mmpi_phase1_data");
-    localStorage.removeItem("mmpi_shuffle_map");
+  // --- NEW: HANDLE EDIT PARTICIPANT ---
+  const handleEditParticipant = async (participant: ParticipantData) => {
+    try {
+      // 1. Fetch the deep data for this patient
+      const response = await fetch("http://localhost:3000/api/peserta/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [participant.idPeserta] }),
+      });
 
-    // 2. Reset the input phase back to step 1 (Data Diri)
-    setPengisianPhase(1);
-    setPengisianData(null);
+      if (!response.ok) throw new Error("Gagal mengambil data lengkap peserta");
+      const data = await response.json();
 
-    // 3. Switch the view to "Daftar Peserta" so the user can see the result
-    setSelectedFeature("peserta");
-    setPesertaViewMode("list");
+      if (data && data.length > 0) {
+        const fullData = data[0];
+
+        // Helper to format ISO dates into standard YYYY-MM-DD for HTML inputs
+        const formatDate = (dateStr: string) => {
+          if (!dateStr) return "";
+          const d = new Date(dateStr);
+          // Prevent timezone shift from pushing date back 1 day
+          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          return d.toISOString().split("T")[0];
+        };
+
+        // Format time to HH:mm (PostgreSQL returns HH:mm:ss)
+        const formatTime = (timeStr: string) => {
+          if (!timeStr) return "";
+          return timeStr.substring(0, 5);
+        };
+
+        // 2. Map database fields to the form variables
+        const mappedData: PengisianDataVariables = {
+          nomorId: fullData.idPeserta || "",
+          tujuanPemeriksaan: fullData.tujuanPemeriksaan || "",
+
+          // [FIX] Double-check both naming conventions from the DB
+          durasiPengerjaan:
+            fullData.durasiPengerjaan || fullData.durasi_pengerjaan || "",
+
+          tanggalPemeriksaanDate: formatDate(fullData.tanggalPemeriksaanDate),
+          tanggalPemeriksaanTime: formatTime(fullData.tanggalPemeriksaanTime),
+          nik: fullData.nik || "",
+          nama: fullData.nama || "",
+          tanggalLahir: formatDate(fullData.tanggalLahir),
+          jenisKelamin: fullData.jenisKelamin || "",
+          sukuBangsa: fullData.sukuBangsa || "",
+          pendidikan: fullData.pendidikan || "",
+          pekerjaan: fullData.pekerjaan || "",
+          statusPerkawinan: fullData.statusPerkawinan || "",
+          nomorHp: fullData.nomorHp || "",
+          alamat: fullData.alamat || "",
+        };
+
+        // 3. Save to localStorage so Phase 1 populates automatically
+        localStorage.setItem("mmpi_phase1_data", JSON.stringify(mappedData));
+
+        // Also setup mmpi_full_data so Phase 2 has the ID ready
+        const finalJsonData = { ...mappedData, idPeserta: mappedData.nomorId };
+        localStorage.setItem("mmpi_full_data", JSON.stringify(finalJsonData));
+
+        // 4. Set the Edit Flag and clear the old shuffle map!
+        localStorage.setItem("mmpi_edit_mode", "true");
+        localStorage.removeItem("mmpi_shuffle_map");
+
+        // 5. Redirect the view
+        setSelectedFeature("pengisian");
+        setPengisianPhase(1);
+      }
+    } catch (error) {
+      console.error("Error editing participant:", error);
+      alert("Gagal memuat data untuk diperbaiki.");
+    }
   };
 
   const renderContent = () => {
@@ -191,7 +246,6 @@ const AdminDashboard: React.FC = () => {
         if (pengisianPhase === 1) {
           return <PengisianDataDiri onNext={handlePengisianNext} />;
         } else {
-          // [UPDATE] Pass the handleTestFinished callback here!
           return <PengisianDataTest onFinish={handleTestFinished} />;
         }
       case "peserta":
@@ -257,9 +311,11 @@ const AdminDashboard: React.FC = () => {
               <span className="text-gray-3 font-normal">&rsaquo;</span>
               <span className="text-black">Daftar Peserta</span>
             </h2>
+            {/* [UPDATED] Pass the new onEdit function to DaftarPeserta */}
             <DaftarPeserta
               onViewDetail={handleViewDetail}
               onPrintMode={handlePrintMode}
+              onEdit={handleEditParticipant}
             />
           </div>
         );
@@ -274,6 +330,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-full font-sans overflow-hidden bg-white text-black print:h-auto print:overflow-visible">
+      {/* ... Header stays exactly the same ... */}
       <header className="h-[10%] w-full bg-gray-5 border-b border-gray-6 flex items-center justify-between px-6 shrink-0 z-20 relative print:hidden">
         <div className="flex items-center gap-4">
           <button
@@ -309,16 +366,12 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               onMouseEnter={() => setHoverArrow(true)}
               onMouseLeave={() => setHoverArrow(false)}
-              className={`p-2 rounded-lg transition-colors focus:outline-none ${
-                isDropdownOpen ? "bg-gray-2" : "hover:bg-gray-2"
-              }`}
+              className={`p-2 rounded-lg transition-colors focus:outline-none ${isDropdownOpen ? "bg-gray-2" : "hover:bg-gray-2"}`}
             >
               <img
                 src={hoverArrow ? arrowDownBlue : arrowDownIcon}
                 alt="Dropdown"
-                className={`w-5 h-5 transition-transform duration-200 ${
-                  isDropdownOpen ? "rotate-180" : ""
-                }`}
+                className={`w-5 h-5 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
               />
             </button>
 
@@ -348,10 +401,7 @@ const AdminDashboard: React.FC = () => {
 
       <div className="flex h-[90%] w-full relative print:h-auto print:overflow-visible">
         <aside
-          className={`
-            bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out print:hidden
-            ${isSidebarOpen ? "w-[20%] opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-10 border-none"}
-          `}
+          className={`bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out print:hidden ${isSidebarOpen ? "w-[20%] opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-10 border-none"}`}
         >
           <div className="flex flex-col gap-1 px-4 min-w-50 font-medium text-xl">
             <SidebarItem
@@ -409,6 +459,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};;
+};
 
 export default AdminDashboard;
