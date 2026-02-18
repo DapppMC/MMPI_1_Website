@@ -11,7 +11,4 @@ router.get('/jawaban-temp/:pasien_id', soalController.getJawabanTemp);
 router.post('/jawaban-temp', soalController.saveJawabanTemp);
 router.post('/jawaban-temp/bulk', soalController.saveJawabanBulk);
 
-// Route: /api/submit-test
-router.post('/submit-test', soalController.submitTest);
-
 module.exports = router;

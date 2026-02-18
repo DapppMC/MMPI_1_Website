@@ -9,4 +9,7 @@ router.get('/peserta', pesertaController.getAllPeserta);
 // Route: /api/peserta/report
 router.post('/peserta/report', pesertaController.getPesertaReport);
 
+// Route: /api/pasien (NEW: Create/Update Biodata)
+router.post('/pasien', pesertaController.upsertPeserta);
+
 module.exports = router;
