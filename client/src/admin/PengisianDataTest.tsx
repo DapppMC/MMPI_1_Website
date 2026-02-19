@@ -4,14 +4,12 @@ import { fetchMMPIQuestions } from "../constants/questions";
 import chevronRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
 import errorIcon from "../assets/icons/error.svg";
 
-// [UPDATE] Add onFinish to the props interface
 interface Props {
   onFinish: () => void;
 }
 
 const TOTAL_QUESTIONS = 566;
 
-// [UPDATE] Destructure onFinish from props
 const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   // 1. Get Patient info upfront
   const savedData = localStorage.getItem("mmpi_full_data");
@@ -29,15 +27,14 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   );
 
   const [shuffledIndices, setShuffledIndices] = useState<number[]>(() => {
-    // [NEW] Check if we are in edit mode
+    // Check if we are in edit mode
     const isEditMode = localStorage.getItem("mmpi_edit_mode") === "true";
 
     if (isEditMode) {
-      // Return a perfectly sequential array [0, 1, 2, 3...] (No Shuffling)
+      // Return a perfectly sequential array [0, 1, 2, 3...]
       return Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
     }
 
-    // Otherwise, do the standard random shuffle for a new test
     const savedShuffle = localStorage.getItem("mmpi_shuffle_map");
     if (savedShuffle) return JSON.parse(savedShuffle);
 
@@ -55,6 +52,18 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
 
   const totalAnswered = answers.filter((a) => a !== null).length;
   const isAllAnswered = totalAnswered === TOTAL_QUESTIONS;
+
+  // --- NEW: Force Exit / Clear Session Function ---
+  const handleForceExit = () => {
+    // Wipe all session data
+    localStorage.removeItem("mmpi_full_data");
+    localStorage.removeItem("mmpi_phase1_data");
+    localStorage.removeItem("mmpi_shuffle_map");
+    localStorage.removeItem("mmpi_edit_mode");
+
+    // Return to dashboard
+    onFinish();
+  };
 
   // --- INITIAL LOAD FROM DATABASE ---
   useEffect(() => {
@@ -149,8 +158,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     setIsModalOpen(true);
   };
 
-  // --- FINAL SUBMIT ---
-  // --- FINAL SUBMIT ---
+  // --- FINAL SUBMIT (UPDATED WITH FAIL-SAFE) ---
   const handleConfirmSubmit = async () => {
     setIsSubmitting(true);
     try {
@@ -160,8 +168,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       const pasienId = parsedData.idPeserta || "xyz-123";
       const mappedGender =
         parsedData.jenisKelamin === "Wanita" ? "Female" : "Male";
-
-      // [NEW] Extract the duration from the saved biodata
       const durasi = parsedData.durasiPengerjaan || "-";
 
       const response = await fetch("http://localhost:3000/api/submit-test", {
@@ -170,11 +176,19 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         body: JSON.stringify({
           pasien_id: pasienId,
           gender: mappedGender,
-          durasi: durasi, // [NEW] Send it to the backend
+          durasi: durasi,
         }),
       });
 
-      if (!response.ok) throw new Error("Gagal mengirim perintah proses");
+      // [FIX] Handle Ghost Data (User deleted in DB but exists in LocalStorage)
+      if (!response.ok) {
+        // If server returns error (like 500 FK violation), we assume the user is gone.
+        alert(
+          "Gagal memproses data. Peserta ini mungkin telah dihapus dari database. Sesi akan di-reset.",
+        );
+        handleForceExit(); // Clear storage and exit
+        return;
+      }
 
       const result = await response.json();
       console.log("Berhasil diproses oleh DOSBox:", result);
@@ -186,7 +200,9 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       onFinish();
     } catch (error) {
       console.error("Submission error:", error);
-      alert("Terjadi kesalahan saat memproses data ke DOSBox.");
+      // Even if network fails, give option to exit?
+      // For now, standard alert, but the previous !response.ok block catches the main DB issue.
+      alert("Terjadi kesalahan koneksi atau server.");
     } finally {
       setIsSubmitting(false);
     }
@@ -207,8 +223,8 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
 
   return (
     <div className="relative flex flex-col h-full w-full max-w-7xl mx-auto overflow-hidden">
-      {/* Header and Content (Kept same as provided) */}
-      <div className="mb-6 shrink-0">
+      {/* Header */}
+      <div className="mb-6 shrink-0 flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2 text-black">
           <span>MMPI</span>
           <img src={chevronRightIcon} alt=">" className="w-5 h-5 opacity-50" />
@@ -216,6 +232,22 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           <img src={chevronRightIcon} alt=">" className="w-5 h-5 opacity-50" />
           <span>Input Jawaban Tes</span>
         </h2>
+
+        {/* [NEW] Manual Exit Button */}
+        <button
+          onClick={() => {
+            if (
+              window.confirm(
+                "Apakah anda yakin ingin membatalkan tes? Semua progress sesi ini akan hilang.",
+              )
+            ) {
+              handleForceExit();
+            }
+          }}
+          className="text-white font-medium text-sm flex items-center gap-1 transition-colors px-3 py-1 rounded-md bg-red-1 hover:bg-red-500"
+        >
+          <span>Batal / Keluar</span>
+        </button>
       </div>
 
       <div className="flex-1 flex gap-8 overflow-hidden">
@@ -405,6 +437,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       )}
     </div>
   );
-};;
+};
 
 export default PengisianDataTest;

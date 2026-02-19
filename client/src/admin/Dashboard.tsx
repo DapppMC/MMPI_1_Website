@@ -84,7 +84,7 @@ const ExportDataContent = () => (
   <h2 className="text-2xl font-bold">Konten Export Data</h2>
 );
 const ImportDataContent = () => (
-  <h2 className="text-2xl font-bold">Konten Import Data</h2>
+  <h2 className="text-2xl font-bold">Mohon Menunggu Update Selanjutnya~</h2>
 );
 
 const AdminDashboard: React.FC = () => {
