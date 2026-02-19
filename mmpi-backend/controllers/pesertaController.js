@@ -111,5 +111,36 @@ const upsertPeserta = async (req, res) => {
   }
 };
 
+const deletePeserta = async (req, res) => {
+  const { ids } = req.body; // Expects an array of IDs like ['TEST-001', 'xyz-123']
+
+  if (!ids || ids.length === 0) {
+    return res.status(400).json({ error: "Tidak ada ID yang diberikan" });
+  }
+
+  try {
+    // Start a SQL Transaction
+    await db.query('BEGIN');
+
+    // 1. Delete all associated test data (Child tables)
+    await db.query('DELETE FROM jawaban_temp WHERE pasien_id = ANY($1)', [ids]);
+    await db.query('DELETE FROM jawaban_fix WHERE pasien_id = ANY($1)', [ids]);
+    await db.query('DELETE FROM test_output WHERE pasien_id = ANY($1)', [ids]);
+
+    // 2. Delete the patient biodata (Parent table)
+    await db.query('DELETE FROM pasien WHERE pasien_id = ANY($1)', [ids]);
+
+    // Commit the transaction if everything succeeded
+    await db.query('COMMIT');
+      
+    res.json({ success: true, message: "Data peserta berhasil dihapus secara permanen." });
+  } catch (err) {
+    // Cancel the deletion if anything goes wrong
+    await db.query('ROLLBACK');
+    console.error("Delete error:", err.message);
+    res.status(500).json({ error: "Server Error: Gagal menghapus data" });
+  }
+};
+
 // Don't forget to export the new function!
-module.exports = { getAllPeserta, getPesertaReport, upsertPeserta };
+module.exports = { getAllPeserta, getPesertaReport, upsertPeserta, deletePeserta };

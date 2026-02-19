@@ -19,12 +19,14 @@ interface DaftarPesertaProps {
   onViewDetail: (participant: ParticipantData) => void;
   onPrintMode: () => void;
   onEdit: (participant: ParticipantData) => void; // [NEW] Trigger edit mode
+  onDeleteMode: () => void; // [NEW PROP] Trigger delete mode
 }
 
 const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
   onViewDetail,
   onPrintMode,
   onEdit, // [NEW]
+  onDeleteMode, // [NEW]
 }) => {
   const [participants, setParticipants] = useState<ParticipantData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -187,7 +189,10 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
                             </span>
                           </div>
 
-                          <div className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors text-red-1 border-t border-gray-1/50">
+                          <div
+                            onClick={onDeleteMode} // [NEW] Attach the click handler here
+                            className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors text-red-1 border-t border-gray-1/50"
+                          >
                             <img
                               src={IconDelete}
                               alt="Delete"

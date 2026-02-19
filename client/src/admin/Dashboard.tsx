@@ -33,6 +33,7 @@ import DaftarPeserta from "./DaftarPeserta";
 import TampilkanData from "./TampilkanData";
 import CetakData from "./CetakData";
 import PreviewCetak from "./PreviewCetak";
+import HapusData from "./HapusData"; // [NEW IMPORT]
 import { type ParticipantData } from "../data/participants";
 
 // --- Helper Component ---
@@ -101,7 +102,7 @@ const AdminDashboard: React.FC = () => {
     useState<PengisianDataVariables | null>(null);
 
   const [pesertaViewMode, setPesertaViewMode] = useState<
-    "list" | "detail" | "print" | "preview"
+    "list" | "detail" | "print" | "preview" | "delete"
   >("list");
   const [dataToPrint, setDataToPrint] = useState<ParticipantData[]>([]);
   const [selectedParticipant, setSelectedParticipant] =
@@ -163,6 +164,22 @@ const AdminDashboard: React.FC = () => {
   const handleExecutePrint = (selectedData: ParticipantData[]) => {
     setDataToPrint(selectedData);
     setPesertaViewMode("preview");
+  };
+
+  const handleDeleteMode = () => {
+    setPesertaViewMode("delete");
+  };
+
+  const handleExecuteDelete = (selectedData: ParticipantData[]) => {
+    // For now, we will just log it and show an alert.
+    // We will connect this to a DELETE /api/peserta endpoint later!
+    console.log("Data to be deleted:", selectedData);
+    alert(
+      `Mensimulasikan penghapusan ${selectedData.length} data peserta... (Koneksi DB menyusul)`,
+    );
+
+    // Go back to the list view after "deleting"
+    setPesertaViewMode("list");
   };
 
   // --- NEW: HANDLE EDIT PARTICIPANT ---
@@ -304,6 +321,29 @@ const AdminDashboard: React.FC = () => {
           );
         }
 
+        if (pesertaViewMode === "delete") {
+          return (
+            <div className="flex flex-col gap-6">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="text-black">MMPI</span>
+                <span className="text-gray-3 font-normal">&rsaquo;</span>
+                <button
+                  onClick={handleBackToList}
+                  className="text-black hover:text-blue-600 transition"
+                >
+                  Daftar Peserta
+                </button>
+                <span className="text-gray-3 font-normal">&rsaquo;</span>
+                <span className="text-black">Hapus Data</span>
+              </h2>
+              <HapusData
+                onCancel={handleBackToList}
+                onDelete={handleExecuteDelete}
+              />
+            </div>
+          );
+        }
+
         return (
           <div className="flex flex-col gap-6">
             <h2 className="text-lg font-bold flex items-center gap-2">
@@ -316,6 +356,7 @@ const AdminDashboard: React.FC = () => {
               onViewDetail={handleViewDetail}
               onPrintMode={handlePrintMode}
               onEdit={handleEditParticipant}
+              onDeleteMode={handleDeleteMode}
             />
           </div>
         );

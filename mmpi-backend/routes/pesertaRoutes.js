@@ -12,4 +12,7 @@ router.post('/peserta/report', pesertaController.getPesertaReport);
 // Route: /api/pasien (NEW: Create/Update Biodata)
 router.post('/pasien', pesertaController.upsertPeserta);
 
+// Route: /api/peserta/delete (NEW: Delete user data)
+router.post('/peserta/delete', pesertaController.deletePeserta);
+
 module.exports = router;
