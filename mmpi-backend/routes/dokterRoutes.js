@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { loginDokter } = require('../controllers/dokterController');
+const { loginDokter, verifyDokter, updateDokter } = require('../controllers/dokterController');
 
-// POST route for login
-router.post('/auth/login', loginDokter);
+// POST routes for auth
+router.post('/dokter/login', loginDokter);
+router.post('/dokter/verify', verifyDokter);
+
+// [NEW] PUT route for updating profile
+router.put('/dokter/update', updateDokter); 
 
 module.exports = router;

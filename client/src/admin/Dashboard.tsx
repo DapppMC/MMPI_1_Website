@@ -31,6 +31,7 @@ import PengisianDataDiri, {
   type PengisianDataVariables,
 } from "./PengisianDataDiri";
 import PengisianDataTest from "./PengisianDataTest";
+import Profile from "./Profile"; // [NEW IMPORT]
 import DaftarPeserta from "./DaftarPeserta";
 import TampilkanData from "./TampilkanData";
 import CetakData from "./CetakData";
@@ -290,6 +291,8 @@ const AdminDashboard: React.FC = () => {
 
   const renderContent = () => {
     switch (selectedFeature) {
+      case "profile": // [NEW CASE]
+        return <Profile />;
       case "pengisian":
         if (pengisianPhase === 1) {
           return <PengisianDataDiri onNext={handlePengisianNext} />;
@@ -419,20 +422,9 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleProfileClick}
-            onMouseEnter={() => setHoverPerson(true)}
-            onMouseLeave={() => setHoverPerson(false)}
-            className="p-2 hover:bg-gray-2 rounded-lg transition-colors focus:outline-none"
-            title="Profile"
-          >
-            <img
-              src={hoverPerson ? personBlue : personIcon}
-              alt="User"
-              className="w-6 h-6"
-            />
-          </button>
+          {/* [REMOVED] The old handleProfileClick button used to be right here! */}
 
+          {/* The Dropdown Button */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -449,17 +441,32 @@ const AdminDashboard: React.FC = () => {
 
             {isDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-6 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black">
-                  <img src={swapIcon} alt="Ganti Akun" className="w-5 h-5 opacity-70" />
-                  <span>Ganti Akun</span>
+                {/* [UPDATED] 'Akun' Button - Triggers Profile View */}
+                <div
+                  onClick={() => {
+                    setSelectedFeature("profile");
+                    setIsDropdownOpen(false); // Close the menu when clicked
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black"
+                >
+                  <img
+                    src={personIcon}
+                    alt="Akun"
+                    className="w-5 h-5 opacity-70"
+                  />
+                  <span>Akun</span>
                 </div>
-                
-                {/* [UPDATED] Attach handleLogout to the Keluar button */}
-                <div 
+
+                {/* Keluar Button */}
+                <div
                   onClick={handleLogout}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black"
                 >
-                  <img src={logoutIcon} alt="Keluar" className="w-5 h-5 opacity-70" />
+                  <img
+                    src={logoutIcon}
+                    alt="Keluar"
+                    className="w-5 h-5 opacity-70"
+                  />
                   <span>Keluar</span>
                 </div>
               </div>

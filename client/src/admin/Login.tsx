@@ -18,7 +18,7 @@ const AdminLogin: React.FC = () => {
     setError(false);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+      const response = await fetch("http://localhost:3000/api/dokter/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -75,8 +75,7 @@ const AdminLogin: React.FC = () => {
         {/* Top: Title */}
         <div className="mt-[10%]">
           <h1 className="text-4xl font-bold leading-tight tracking-wide drop-shadow-md">
-            Admin <br />
-            Portal <br />
+            Admin Portal<br />
             <span className="font-normal text-3xl block mt-2">
               (MMPI System)
             </span>
@@ -160,7 +159,7 @@ const AdminLogin: React.FC = () => {
                     Memproses...
                   </>
                 ) : (
-                  "Masuk sebagai Admin"
+                  "Masuk sebagai Dokter"
                 )}
               </span>
             </button>
