@@ -8,17 +8,39 @@ const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // [NEW] Loading state
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  // [UPDATED] Async login handler connected to database
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(false);
 
-    // Mock Validation: generic admin/admin123 credentials
-    if (username === "admin" && password === "admin123") {
-      navigate("/admin/dashboard");
-    } else {
+    try {
+      const response = await fetch("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Optional: Save doctor info to use in the Dashboard profile section!
+        localStorage.setItem("active_dokter", JSON.stringify(data.user));
+
+        navigate("/admin/dashboard");
+      } else {
+        setError(true);
+        setPassword(""); // Clear password on failure for security/UX
+      }
+    } catch (err) {
+      console.error("Failed to connect to server:", err);
       setError(true);
-      setPassword(""); // Clear password on failure for security/UX
+      setPassword("");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -77,12 +99,13 @@ const AdminLogin: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={(e) => handleInputChange(setUsername, e.target.value)}
+                disabled={isLoading}
                 placeholder="Masukkan username"
                 className={`w-full px-4 py-3 rounded-lg text-black placeholder-gray-400 bg-white focus:outline-none transition-all shadow-sm ${
                   error
                     ? "ring-2 ring-red-1"
                     : "focus:ring-2 focus:ring-purple-4"
-                }`}
+                } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
               />
             </div>
 
@@ -99,12 +122,13 @@ const AdminLogin: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => handleInputChange(setPassword, e.target.value)}
+                disabled={isLoading}
                 placeholder="Masukkan password"
                 className={`w-full px-4 py-3 rounded-lg text-black placeholder-gray-400 bg-white focus:outline-none transition-all shadow-sm ${
                   error
                     ? "ring-2 ring-red-1"
                     : "focus:ring-2 focus:ring-purple-4"
-                }`}
+                } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
               />
 
               {/* Error Message: Only appears below password */}
@@ -115,12 +139,30 @@ const AdminLogin: React.FC = () => {
               )}
             </div>
 
+            {/* [UPDATED] Submit Button with Loading State */}
             <button
               type="submit"
-              className="group relative w-full py-3 mt-4 rounded-lg bg-linear-to-r from-purple-4 to-purple-2 text-white font-bold tracking-wide shadow-lg hover:shadow-xl transition-all transform active:scale-[0.98] overflow-hidden"
+              disabled={isLoading}
+              className={`group relative w-full py-3 mt-4 rounded-lg bg-linear-to-r from-purple-4 to-purple-2 text-white font-bold tracking-wide shadow-lg transition-all transform overflow-hidden ${
+                isLoading
+                  ? "opacity-80 cursor-wait"
+                  : "hover:shadow-xl active:scale-[0.98]"
+              }`}
             >
-              <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-15 transition-opacity duration-200" />
-              <span className="relative z-10">Masuk sebagai Admin</span>
+              {!isLoading && (
+                <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-15 transition-opacity duration-200" />
+              )}
+
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Memproses...
+                  </>
+                ) : (
+                  "Masuk sebagai Admin"
+                )}
+              </span>
             </button>
           </form>
         </div>

@@ -1,5 +1,7 @@
 // src/admin/Dashboard.tsx
 import React, { useState, useEffect, useRef } from "react";
+// [NEW] Import useNavigate for redirecting unauthorized users
+import { useNavigate } from "react-router-dom";
 
 // --- Icons Import ---
 import menuCloseIcon from "../assets/icons/light_mode/menu_close.svg";
@@ -88,6 +90,21 @@ const ImportDataContent = () => (
 );
 
 const AdminDashboard: React.FC = () => {
+  // [NEW] Setup navigation
+  const navigate = useNavigate();
+
+  // [NEW] Route Protection Logic
+  useEffect(() => {
+    // Check if the doctor's info is in localStorage
+    const activeUser = localStorage.getItem("active_dokter");
+
+    // If no user is logged in, redirect them to the login page immediately
+    if (!activeUser) {
+      navigate("/admin/login", { replace: true });
+      // replace: true means they can't click the "Back" button to return to the dashboard
+    }
+  }, [navigate]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<string>("pengisian");
@@ -257,6 +274,20 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // [UPDATED] Let's make the "Keluar" (Logout) button actually work!
+  const handleLogout = () => {
+    // Clear the active user session
+    localStorage.removeItem("active_dokter");
+    // Clear any pending test data just to be safe
+    localStorage.removeItem("mmpi_full_data");
+    localStorage.removeItem("mmpi_phase1_data");
+    localStorage.removeItem("mmpi_shuffle_map");
+    localStorage.removeItem("mmpi_edit_mode");
+
+    // Send them back to the login screen
+    navigate("/admin/login", { replace: true });
+  };
+
   const renderContent = () => {
     switch (selectedFeature) {
       case "pengisian":
@@ -419,19 +450,16 @@ const AdminDashboard: React.FC = () => {
             {isDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-6 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                 <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black">
-                  <img
-                    src={swapIcon}
-                    alt="Ganti Akun"
-                    className="w-5 h-5 opacity-70"
-                  />
+                  <img src={swapIcon} alt="Ganti Akun" className="w-5 h-5 opacity-70" />
                   <span>Ganti Akun</span>
                 </div>
-                <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black">
-                  <img
-                    src={logoutIcon}
-                    alt="Keluar"
-                    className="w-5 h-5 opacity-70"
-                  />
+                
+                {/* [UPDATED] Attach handleLogout to the Keluar button */}
+                <div 
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-6 cursor-pointer transition-colors text-lg font-medium text-black"
+                >
+                  <img src={logoutIcon} alt="Keluar" className="w-5 h-5 opacity-70" />
                   <span>Keluar</span>
                 </div>
               </div>
@@ -500,6 +528,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};
+};;;
 
 export default AdminDashboard;

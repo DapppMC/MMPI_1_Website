@@ -11,6 +11,7 @@ const port = 3000;
 const pesertaRoutes = require('./routes/pesertaRoutes');
 const soalRoutes = require('./routes/soalRoutes');
 const submissionRoutes = require('./routes/submissionRoutes');
+const dokterRoutes = require('./routes/dokterRoutes');
 
 // Middleware
 app.use(cors());
@@ -26,6 +27,7 @@ db.connect()
 app.use('/api', pesertaRoutes);
 app.use('/api', soalRoutes);
 app.use('/api', submissionRoutes);
+app.use('/api', dokterRoutes);
 
 app.listen(port, () => {
   console.log(`Node server is running on http://localhost:${port}`);
