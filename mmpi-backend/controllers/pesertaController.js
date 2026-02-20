@@ -1,18 +1,30 @@
 // controllers/pesertaController.js
 const db = require('../config/db');
 
-// 1. Get all participants
+// 1. Get all participants (UPDATED WITH FILTERING)
 const getAllPeserta = async (req, res) => {
   try {
-    const result = await db.query(`
+    const { kodeSeri } = req.query; // Extract from URL parameters
+
+    let query = `
       SELECT 
         pasien_id AS "idPeserta",
         nama,
         jenis_kelamin AS "jenisKelamin",
         tanggal_pemeriksaan_date AS "tanggalPemeriksaanDate"
       FROM pasien
-      ORDER BY tanggal_pemeriksaan_date DESC;
-    `);
+    `;
+    let queryParams = [];
+
+    // If a kodeSeri is provided, filter the results
+    if (kodeSeri) {
+      query += ` WHERE pasien_id LIKE $1 OR pasien_id NOT LIKE '%-%'`;
+      queryParams.push(`${kodeSeri}-%`); // E.g., 'xyz-%'
+    }
+
+    query += ` ORDER BY tanggal_pemeriksaan_date DESC;`;
+
+    const result = await db.query(query, queryParams);
     res.json(result.rows);
   } catch (err) {
     console.error(err.message);

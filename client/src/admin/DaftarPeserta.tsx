@@ -40,7 +40,22 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
   useEffect(() => {
     const fetchParticipants = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/peserta");
+        // 1. Get the active doctor's kodeSeri from local storage
+        const activeUserStr = localStorage.getItem("active_dokter");
+        let kodeSeri = "";
+
+        if (activeUserStr) {
+          const activeUser = JSON.parse(activeUserStr);
+          // Check both camelCase and snake_case just to be safe
+          kodeSeri = activeUser.kodeSeri || activeUser.kode_seri || "";
+        }
+
+        // 2. Append it to the API URL as a query parameter
+        const url = kodeSeri
+          ? `http://localhost:3000/api/peserta?kodeSeri=${kodeSeri}`
+          : "http://localhost:3000/api/peserta";
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
         setParticipants(data);

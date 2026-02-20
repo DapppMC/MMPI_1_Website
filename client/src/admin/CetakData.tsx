@@ -27,7 +27,20 @@ const CetakData: React.FC<CetakDataProps> = ({ onCancel, onPrint }) => {
   useEffect(() => {
     const fetchParticipants = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/peserta");
+        // Fetch only patients belonging to this doctor (or global patients)
+        const activeUserStr = localStorage.getItem("active_dokter");
+        let kodeSeri = "";
+
+        if (activeUserStr) {
+          const activeUser = JSON.parse(activeUserStr);
+          kodeSeri = activeUser.kodeSeri || activeUser.kode_seri || "";
+        }
+
+        const url = kodeSeri
+          ? `http://localhost:3000/api/peserta?kodeSeri=${kodeSeri}`
+          : "http://localhost:3000/api/peserta";
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
         setParticipants(data);
