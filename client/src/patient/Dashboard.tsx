@@ -16,7 +16,7 @@ import keyboardBlue from "../assets/icons/blue/keyboard.svg";
 import PengisianDataDiri, {
   type PengisianDataVariables,
 } from "./PengisianDataDiri"; // Adjust path to point to your existing component!
-import PengisianDataTest from "../admin/PengisianDataTest"; // Adjust path!
+import PengisianDataTest from "./PengisianDataTest"; // Adjust path!
 
 // --- Helper Component ---
 interface SidebarItemProps {
@@ -136,7 +136,7 @@ const PatientDashboard: React.FC = () => {
     localStorage.removeItem("mmpi_edit_mode");
 
     // Send them back to the login screen
-    navigate("/", { replace: true });
+    navigate("/finish", { replace: true });
   };
 
   const renderContent = () => {

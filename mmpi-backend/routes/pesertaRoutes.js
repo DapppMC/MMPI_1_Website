@@ -22,4 +22,8 @@ router.post('/peserta/login', pesertaController.loginPeserta);
 // Changed to GET and added /:id to capture the ID from the URL
 router.get('/peserta/:id', pesertaController.getPesertaById);
 
+// [NEW] Routes for tracking test duration and status
+router.post('/test-status/start', pesertaController.startTestStatus);
+router.post('/test-status/finish', pesertaController.finishTestStatus);
+
 module.exports = router;

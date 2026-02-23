@@ -248,6 +248,13 @@ const PengisianDataDiri: React.FC<Props> = ({ onNext }) => {
 
       if (!response.ok) throw new Error("Gagal menyimpan data ke server");
 
+      // 2. [NEW] Start the database timer and update status
+      await fetch("http://localhost:3000/api/test-status/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pasien_id: formData.nomorId }),
+      });
+
       const finalJsonData = {
         ...formData,
         idPeserta: formData.nomorId,

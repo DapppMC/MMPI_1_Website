@@ -165,7 +165,7 @@ const deletePeserta = async (req, res) => {
   }
 };
 
-// [NEW] Login function for Peserta (Patient)
+// [UPDATED] Login function for Peserta (Patient)
 const loginPeserta = async (req, res) => {
   const { pasien_id } = req.body;
 
@@ -174,22 +174,39 @@ const loginPeserta = async (req, res) => {
   }
 
   try {
+    // JOIN with pasien_test_status to get the current test status
     const query = `
       SELECT 
-        pasien_id AS "idPeserta", 
-        nama, 
-        jenis_kelamin AS "jenisKelamin"
-      FROM public.pasien 
-      WHERE pasien_id = $1
+        p.pasien_id AS "idPeserta", 
+        p.nama, 
+        p.jenis_kelamin AS "jenisKelamin",
+        pts.status
+      FROM public.pasien p
+      LEFT JOIN public.pasien_test_status pts ON p.pasien_id = pts.pasien_id
+      WHERE p.pasien_id = $1
     `;
     
     const result = await db.query(query, [pasien_id]);
 
     if (result.rows.length > 0) {
+      const user = result.rows[0];
+
+      // Check if the user has already finished the test
+      if (user.status === 'Selesai') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Akun ini telah menyelesaikan test. Harap hubungi staf kesehatan jika merasa terdapat kesalahan" 
+        });
+      }
+
       res.json({ 
         success: true, 
         message: "Login berhasil",
-        user: result.rows[0] 
+        user: {
+          idPeserta: user.idPeserta,
+          nama: user.nama,
+          jenisKelamin: user.jenisKelamin
+        } 
       });
     } else {
       res.status(401).json({ success: false, message: "Nomor ID tidak ditemukan. Silakan hubungi dokter/admin." });
@@ -239,64 +256,107 @@ const getPesertaById = async (req, res) => {
   }
 };
 
-// [NEW] Start the test timer
+// [NEW] Helper function to format milliseconds into HH:MM string
+const formatDurationHHMM = (startMs, finishMs) => {
+  const diffMs = finishMs - startMs;
+  if (diffMs <= 0) return "00:00"; // Should not happen normally
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  // Pad with leading zeros (e.g., 1 hour 5 mins becomes "01:05")
+  const hh = String(hours).padStart(2, '0');
+  const mm = String(minutes).padStart(2, '0');
+
+  return `${hh}:${mm}`;
+};
+
+// [UPDATED] Start the test timer (Manual check to avoid ON CONFLICT database errors)
 const startTestStatus = async (req, res) => {
   const { pasien_id } = req.body;
   try {
-    // Check if a record already exists for this patient
+    // 1. Check if a record already exists for this patient
     const checkQuery = `SELECT pasien_test_status_id FROM public.pasien_test_status WHERE pasien_id = $1`;
     const checkRes = await db.query(checkQuery, [pasien_id]);
 
     if (checkRes.rows.length > 0) {
-      // Update existing record
+      // 2a. Record exists! They probably hit "Back" or refreshed.
+      // Update the status to 'Sedang berlangsung', but DO NOT touch the start_time.
       await db.query(`
         UPDATE public.pasien_test_status 
-        SET status = 'Sedang berlangsung', start_time = CURRENT_TIMESTAMP, finish_time = NULL 
+        SET status = 'Sedang berlangsung'
         WHERE pasien_id = $1
       `, [pasien_id]);
+      
+      console.log(`[BACKEND] Timer resumed for patient: ${pasien_id} (Start time preserved)`);
     } else {
-      // Insert new record
+      // 2b. No record exists. This is their first time starting the test.
       await db.query(`
         INSERT INTO public.pasien_test_status (pasien_id, status, start_time) 
         VALUES ($1, 'Sedang berlangsung', CURRENT_TIMESTAMP)
       `, [pasien_id]);
+      
+      console.log(`[BACKEND] Timer started for patient: ${pasien_id}`);
     }
     
-    res.json({ success: true, message: "Waktu pengerjaan dimulai" });
+    res.json({ success: true, message: "Waktu pengerjaan dimulai/dilanjutkan." });
   } catch (err) {
-    console.error("Error starting test status:", err.message);
+    console.error("[BACKEND] Error starting test status:", err.message);
     res.status(500).json({ error: "Gagal memulai waktu pengerjaan" });
   }
 };
 
-// [NEW] Finish the test timer
+// [UPDATED] Finish timer, calculate HH:MM duration, update two tables
 const finishTestStatus = async (req, res) => {
   const { pasien_id } = req.body;
+  
   try {
-    const query = `
+    // 1. Start a transaction because we are updating two related tables
+    await db.query('BEGIN');
+
+    // 2. Update status table and fetch start/finish times immediately
+    const updateStatusQuery = `
       UPDATE public.pasien_test_status 
       SET status = 'Selesai', finish_time = CURRENT_TIMESTAMP 
       WHERE pasien_id = $1
       RETURNING start_time, finish_time;
     `;
-    const result = await db.query(query, [pasien_id]);
-    
-    // Bonus: We can calculate the duration in the backend just in case you need it later
-    let durasiMins = 0;
-    if (result.rows.length > 0 && result.rows[0].start_time && result.rows[0].finish_time) {
-       const start = new Date(result.rows[0].start_time);
-       const finish = new Date(result.rows[0].finish_time);
-       durasiMins = Math.floor((finish - start) / 60000); // Difference in minutes
+    const statusRes = await db.query(updateStatusQuery, [pasien_id]);
+
+    if (statusRes.rows.length === 0 || !statusRes.rows[0].start_time) {
+       throw new Error("Data waktu mulai tidak ditemukan. Tidak bisa menghitung durasi.");
     }
+
+    // 3. Calculate Duration String (HH:MM) in Node.js
+    const startTime = new Date(statusRes.rows[0].start_time);
+    const finishTime = new Date(statusRes.rows[0].finish_time);
+    const formattedDuration = formatDurationHHMM(startTime, finishTime);
+
+    console.log(`[BACKEND] Calculated duration for ${pasien_id}: ${formattedDuration}`);
+
+    // 4. Update the test_output table with the formatted duration string
+    // Note: This assumes a record already exists in test_output for this patient.
+    const updateOutputQuery = `
+        UPDATE public.test_output
+        SET durasi_pengerjaan = $2
+        WHERE pasien_id = $1;
+    `;
+    await db.query(updateOutputQuery, [pasien_id, formattedDuration]);
+
+    // 5. Commit the transaction if both updates succeeded
+    await db.query('COMMIT');
 
     res.json({ 
       success: true, 
-      message: "Tes selesai disubmit", 
-      durasi_pengerjaan: `${durasiMins} Menit` 
+      message: "Tes selesai dan durasi telah disimpan.", 
+      durasi_formatted: formattedDuration 
     });
   } catch (err) {
-    console.error("Error finishing test status:", err.message);
-    res.status(500).json({ error: "Gagal menyimpan waktu selesai" });
+    // Rollback both updates if anything fails
+    await db.query('ROLLBACK');
+    console.error("[BACKEND] Error finishing test status:", err.message);
+    res.status(500).json({ error: "Gagal menyimpan data akhir tes." });
   }
 };
 

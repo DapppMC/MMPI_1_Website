@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import Login from "./patient/Login";
 import PatientDashboard from "./patient/Dashboard"; // Import Patient Dashboard
+import Finish from "./patient/Finish";
 import AdminLogin from "./admin/Login"; // Import Admin Login
 import AdminDashboard from "./admin/Dashboard";
 
@@ -20,6 +21,7 @@ function App() {
         {/* --- User Routes --- */}
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<PatientDashboard />} />
+        <Route path="/finish" element={<Finish />} />
 
         {/* --- Admin Routes --- */}
         <Route path="/admin/login" element={<AdminLogin />} />
