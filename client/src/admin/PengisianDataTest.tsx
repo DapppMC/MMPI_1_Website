@@ -1,4 +1,4 @@
-// src/admin/PengisianDataTest.tsx
+// src/user/PengisianDataTest.tsx
 import React, { useState, useEffect } from "react";
 import { fetchMMPIQuestions } from "../constants/questions";
 import chevronRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
@@ -14,7 +14,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   const savedData = localStorage.getItem("mmpi_full_data");
   const parsedData = savedData ? JSON.parse(savedData) : {};
   const pasienId = parsedData.idPeserta || "xyz-123";
-  const mappedGender = parsedData.jenisKelamin === "Wanita" ? "Female" : "Male";
 
   const [questions, setQuestions] = useState<string[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
@@ -65,67 +64,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     initializeData();
   }, [pasienId]);
 
-  // --- [UPDATED] HOTKEYS FOR FAST ENTRY ---
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      // Prevent action if modal is open to avoid background changes
-      if (isModalOpen || isLoadingQuestions) return;
-
-      const key = e.key.toLowerCase();
-
-      // DEBUG: Auto-fill all
-      if (key === "p") {
-        console.log(
-          "DEBUG: Auto-filling all 566 questions & sending bulk update...",
-        );
-        const dummyAnswers = Array.from(
-          { length: TOTAL_QUESTIONS },
-          () => Math.random() > 0.5,
-        );
-        setAnswers(dummyAnswers);
-
-        await fetch("http://localhost:3000/api/jawaban-temp/bulk", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pasien_id: pasienId, answers: dummyAnswers }),
-        });
-        console.log("DEBUG: Database successfully filled.");
-        return;
-      }
-
-      // QoL: 'y' for Ya (True), 't' for Tidak (False)
-      if (key === "y" || key === "t") {
-        const booleanAnswer = key === "y"; // 'y' is true, 't' is false
-
-        // 1. Update state immediately for UI
-        setAnswers((prev) => {
-          const newArr = [...prev];
-          newArr[currentDisplayIdx] = booleanAnswer;
-          return newArr;
-        });
-
-        // 2. Save to DB (Fire and forget)
-        fetch("http://localhost:3000/api/jawaban-temp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pasien_id: pasienId,
-            soal_id: currentDisplayIdx + 1,
-            jawaban: booleanAnswer ? "T" : "F",
-          }),
-        }).catch((err) => console.error("Gagal menyimpan progress:", err));
-
-        // 3. Move to next question if not at the end
-        if (currentDisplayIdx < TOTAL_QUESTIONS - 1) {
-          setCurrentDisplayIdx((prev) => prev + 1);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pasienId, currentDisplayIdx, isModalOpen, isLoadingQuestions]); // Added dependencies to ensure it reads the latest index!
-
   const realQuestionIdx = currentDisplayIdx;
   const questionText = isLoadingQuestions
     ? "Memuat pertanyaan dari database..."
@@ -133,30 +71,28 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       `Pertanyaan tidak ditemukan untuk indeks ${realQuestionIdx}`;
   const currentAnswer = answers[realQuestionIdx];
 
-  // Mouse click handler for answers
+  // --- MOUSE CLICK HANDLER (WITH AUTO-SAVE) ---
   const handleAnswer = (val: boolean) => {
+    // 1. Update UI state instantly
     setAnswers((prev) => {
       const newArr = [...prev];
       newArr[realQuestionIdx] = val;
       return newArr;
     });
+
+    // 2. Fire-and-forget save to database to prevent data loss
+    fetch("http://localhost:3000/api/jawaban-temp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pasien_id: pasienId,
+        soal_id: realQuestionIdx + 1,
+        jawaban: val ? "T" : "F",
+      }),
+    }).catch((err) => console.error("Gagal menyimpan progress:", err));
   };
 
-  const changeQuestionAndSave = async (newDisplayIdx: number) => {
-    const answerToSave = answers[realQuestionIdx];
-
-    if (answerToSave !== null) {
-      // Fire-and-forget save for temporary answers
-      fetch("http://localhost:3000/api/jawaban-temp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pasien_id: pasienId,
-          soal_id: realQuestionIdx + 1,
-          jawaban: answerToSave ? "T" : "F",
-        }),
-      }).catch((err) => console.error("Gagal menyimpan progress:", err));
-    }
+  const changeQuestion = (newDisplayIdx: number) => {
     setCurrentDisplayIdx(newDisplayIdx);
   };
 
@@ -164,33 +100,24 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     setIsModalOpen(true);
   };
 
-  const handleConfirmSubmit = () => {
+  // --- FINAL SUBMIT ---
+  const handleConfirmSubmit = async () => {
     try {
-      const savedData = localStorage.getItem("mmpi_full_data");
-      const parsedData = savedData ? JSON.parse(savedData) : {};
-
-      const pasienId = parsedData.idPeserta || "xyz-123";
-      const mappedGender =
-        parsedData.jenisKelamin === "Wanita" ? "Female" : "Male";
-      const durasi = parsedData.durasiPengerjaan || "-";
-
-      fetch("http://localhost:3000/api/submit-test", {
+      // Replaced microservice trigger with a bulk database save
+      await fetch("http://localhost:3000/api/jawaban-temp/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pasien_id: pasienId,
-          gender: mappedGender,
-          durasi: durasi,
+          answers: answers,
         }),
-      }).catch((error) => {
-        console.error("Background processing error:", error);
       });
 
       setIsModalOpen(false);
       onFinish();
     } catch (error) {
       console.error("Submission setup error:", error);
-      alert("Terjadi kesalahan sistem saat menyiapkan data.");
+      alert("Terjadi kesalahan sistem saat menyimpan data.");
     }
   };
 
@@ -246,9 +173,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
               <h3 className="text-xl font-bold text-black pl-1">
                 Pertanyaan {currentDisplayIdx + 1}
               </h3>
-              <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                Hint: Tekan 'Y' atau 'T'
-              </span>
             </div>
 
             <div className="w-full p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
@@ -271,7 +195,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                   disabled={isLoadingQuestions}
                   className="w-5 h-5 accent-blue-600"
                 />
-                <span className="text-gray-800 font-medium">Setuju (Y)</span>
+                <span className="text-gray-800 font-medium">Setuju</span>
               </label>
 
               <label
@@ -285,7 +209,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                   disabled={isLoadingQuestions}
                   className="w-5 h-5 accent-blue-600"
                 />
-                <span className="text-gray-800 font-medium">Tidak Setuju (T)</span>
+                <span className="text-gray-800 font-medium">Tidak Setuju</span>
               </label>
             </div>
           </div>
@@ -294,7 +218,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
             <div className="flex gap-4">
               <button
                 onClick={() =>
-                  changeQuestionAndSave(Math.max(0, currentDisplayIdx - 1))
+                  changeQuestion(Math.max(0, currentDisplayIdx - 1))
                 }
                 disabled={currentDisplayIdx === 0 || isLoadingQuestions}
                 className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
@@ -303,7 +227,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
               </button>
               <button
                 onClick={() =>
-                  changeQuestionAndSave(
+                  changeQuestion(
                     Math.min(TOTAL_QUESTIONS - 1, currentDisplayIdx + 1),
                   )
                 }
@@ -342,7 +266,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                   <div
                     key={displayIndex}
                     onClick={() =>
-                      !isLoadingQuestions && changeQuestionAndSave(displayIndex)
+                      !isLoadingQuestions && changeQuestion(displayIndex)
                     }
                     className={`${getGridItemClass(displayIndex)} ${isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""}`}
                   >

@@ -88,7 +88,7 @@ const Login: React.FC = () => {
                 htmlFor="pasienId"
                 className="text-md font-medium opacity-90 drop-shadow-sm"
               >
-                Nomor ID Pasien
+                Nomor ID Peserta
               </label>
 
               <input

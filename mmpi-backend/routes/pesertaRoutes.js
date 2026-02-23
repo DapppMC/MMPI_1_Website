@@ -15,7 +15,11 @@ router.post('/pasien', pesertaController.upsertPeserta);
 // Route: /api/peserta/delete (NEW: Delete user data)
 router.post('/peserta/delete', pesertaController.deletePeserta);
 
-// [NEW] Route for patient login
+// Route for patient login
 router.post('/peserta/login', pesertaController.loginPeserta);
+
+// [CORRECTED] Route for getting a single patient information by ID
+// Changed to GET and added /:id to capture the ID from the URL
+router.get('/peserta/:id', pesertaController.getPesertaById);
 
 module.exports = router;

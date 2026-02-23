@@ -200,11 +200,114 @@ const loginPeserta = async (req, res) => {
   }
 };
 
-// Don't forget to export it!
+// 4. Get a single participant by ID (NEW)
+const getPesertaById = async (req, res) => {
+  try {
+    const { id } = req.params; // We will pass the ID in the URL
+
+    const query = `
+      SELECT 
+        pasien_id AS "nomorId",
+        nama,
+        nik,
+        jenis_kelamin AS "jenisKelamin",
+        tanggal_lahir AS "tanggalLahir",
+        alamat,
+        status_perkawinan AS "statusPerkawinan",
+        pendidikan,
+        pekerjaan,
+        suku_bangsa AS "sukuBangsa",
+        nomor_hp AS "nomorHp",
+        tujuan_pemeriksaan AS "tujuanPemeriksaan",
+        tanggal_pemeriksaan_date AS "tanggalPemeriksaanDate",
+        tanggal_pemeriksaan_time AS "tanggalPemeriksaanTime"
+      FROM pasien 
+      WHERE pasien_id = $1
+    `;
+    
+    const result = await db.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Data peserta tidak ditemukan" });
+    }
+
+    // Send the single object directly, not an array
+    res.json(result.rows[0]); 
+  } catch (err) {
+    console.error("Error fetching peserta by ID:", err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+// [NEW] Start the test timer
+const startTestStatus = async (req, res) => {
+  const { pasien_id } = req.body;
+  try {
+    // Check if a record already exists for this patient
+    const checkQuery = `SELECT pasien_test_status_id FROM public.pasien_test_status WHERE pasien_id = $1`;
+    const checkRes = await db.query(checkQuery, [pasien_id]);
+
+    if (checkRes.rows.length > 0) {
+      // Update existing record
+      await db.query(`
+        UPDATE public.pasien_test_status 
+        SET status = 'Sedang berlangsung', start_time = CURRENT_TIMESTAMP, finish_time = NULL 
+        WHERE pasien_id = $1
+      `, [pasien_id]);
+    } else {
+      // Insert new record
+      await db.query(`
+        INSERT INTO public.pasien_test_status (pasien_id, status, start_time) 
+        VALUES ($1, 'Sedang berlangsung', CURRENT_TIMESTAMP)
+      `, [pasien_id]);
+    }
+    
+    res.json({ success: true, message: "Waktu pengerjaan dimulai" });
+  } catch (err) {
+    console.error("Error starting test status:", err.message);
+    res.status(500).json({ error: "Gagal memulai waktu pengerjaan" });
+  }
+};
+
+// [NEW] Finish the test timer
+const finishTestStatus = async (req, res) => {
+  const { pasien_id } = req.body;
+  try {
+    const query = `
+      UPDATE public.pasien_test_status 
+      SET status = 'Selesai', finish_time = CURRENT_TIMESTAMP 
+      WHERE pasien_id = $1
+      RETURNING start_time, finish_time;
+    `;
+    const result = await db.query(query, [pasien_id]);
+    
+    // Bonus: We can calculate the duration in the backend just in case you need it later
+    let durasiMins = 0;
+    if (result.rows.length > 0 && result.rows[0].start_time && result.rows[0].finish_time) {
+       const start = new Date(result.rows[0].start_time);
+       const finish = new Date(result.rows[0].finish_time);
+       durasiMins = Math.floor((finish - start) / 60000); // Difference in minutes
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Tes selesai disubmit", 
+      durasi_pengerjaan: `${durasiMins} Menit` 
+    });
+  } catch (err) {
+    console.error("Error finishing test status:", err.message);
+    res.status(500).json({ error: "Gagal menyimpan waktu selesai" });
+  }
+};
+
+// Don't forget to export them!
 module.exports = { 
   getAllPeserta, 
   getPesertaReport, 
   upsertPeserta, 
   deletePeserta,
-  loginPeserta // [NEW] Add this here
+  loginPeserta,
+  getPesertaById,
+  startTestStatus,   // <--- Add this
+  finishTestStatus   // <--- Add this
 };
