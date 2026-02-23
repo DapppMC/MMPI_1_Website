@@ -1,34 +1,49 @@
 const db = require('../config/db');
+const bcrypt = require('bcrypt'); // [NEW] Import bcrypt
 
 // 1. Login function for Dokter
 const loginDokter = async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    // [UPDATED] We only search by username now, NOT password
     const query = `
       SELECT 
         dokter_id AS "dokterId", 
         nama, 
-        username, 
+        username,
+        password, 
         pasien_code_id AS "pasienCodeId", 
         kode_seri AS "kodeSeri"
       FROM public.dokter 
-      WHERE username = $1 AND password = $2
+      WHERE username = $1
     `;
     
-    const result = await db.query(query, [username, password]);
+    const result = await db.query(query, [username]);
 
     if (result.rows.length > 0) {
-      res.json({ 
-        success: true, 
-        message: "Login berhasil",
-        user: result.rows[0] 
-      });
+      const user = result.rows[0];
+      
+      // [NEW] Securely compare the typed password with the hashed database password
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (isMatch) {
+        // Remove password from the user object before sending to React
+        delete user.password; 
+
+        res.json({ 
+          success: true, 
+          message: "Login berhasil",
+          user: user 
+        });
+      } else {
+        res.status(401).json({ success: false, message: "Username atau password salah!" });
+      }
     } else {
       res.status(401).json({ success: false, message: "Username atau password salah!" });
     }
   } catch (err) {
-    console.error(err.message);
+    console.error("Login error:", err.message);
     res.status(500).send('Server Error');
   }
 };
@@ -38,31 +53,41 @@ const verifyDokter = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const query = `SELECT dokter_id FROM public.dokter WHERE username = $1 AND password = $2`;
-    const result = await db.query(query, [username, password]);
+    // [UPDATED] Only search by username
+    const query = `SELECT password FROM public.dokter WHERE username = $1`;
+    const result = await db.query(query, [username]);
 
     if (result.rows.length > 0) {
-      res.json({ success: true, message: "Verifikasi berhasil" });
+      // [NEW] Securely compare hashes
+      const isMatch = await bcrypt.compare(password, result.rows[0].password);
+      
+      if (isMatch) {
+        res.json({ success: true, message: "Verifikasi berhasil" });
+      } else {
+        res.status(401).json({ success: false, message: "Password salah!" });
+      }
     } else {
       res.status(401).json({ success: false, message: "Password salah!" });
     }
   } catch (err) {
-    console.error(err.message);
+    console.error("Verify error:", err.message);
     res.status(500).send('Server Error');
   }
 };
 
-// 3. [NEW] Update function for Profile
+// 3. Update function for Profile
 const updateDokter = async (req, res) => {
   const { dokterId, nama, username, password } = req.body;
 
-  // Basic validation to ensure no empty fields are sent
   if (!dokterId || !nama || !username || !password) {
     return res.status(400).json({ success: false, message: "Semua data wajib diisi!" });
   }
 
   try {
-    // Update the record and instantly return the new safe data (excluding password)
+    // [NEW] Hash the new password before saving it to the database
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
     const query = `
       UPDATE public.dokter 
       SET nama = $1, username = $2, password = $3
@@ -75,7 +100,8 @@ const updateDokter = async (req, res) => {
         kode_seri AS "kodeSeri"
     `;
     
-    const result = await db.query(query, [nama, username, password, dokterId]);
+    // [UPDATED] Pass the hashedPassword instead of the plain password
+    const result = await db.query(query, [nama, username, hashedPassword, dokterId]);
 
     if (result.rows.length > 0) {
       res.json({ 
@@ -88,7 +114,6 @@ const updateDokter = async (req, res) => {
     }
   } catch (err) {
     console.error("Update Error:", err.message);
-    // Handle unique constraint violation if username is already taken
     if (err.code === '23505') {
        return res.status(400).json({ success: false, message: "Username sudah digunakan oleh dokter lain!" });
     }
@@ -96,5 +121,4 @@ const updateDokter = async (req, res) => {
   }
 };
 
-// Exporting in the same format
 module.exports = { loginDokter, verifyDokter, updateDokter };

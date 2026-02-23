@@ -11,7 +11,6 @@ interface Props {
 const TOTAL_QUESTIONS = 566;
 
 const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
-  // 1. Get Patient info upfront
   const savedData = localStorage.getItem("mmpi_full_data");
   const parsedData = savedData ? JSON.parse(savedData) : {};
   const pasienId = parsedData.idPeserta || "xyz-123";
@@ -19,33 +18,10 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
 
   const [questions, setQuestions] = useState<string[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Default empty array while we wait for DB
   const [answers, setAnswers] = useState<(boolean | null)[]>(
     Array(TOTAL_QUESTIONS).fill(null),
   );
-
-  const [shuffledIndices, setShuffledIndices] = useState<number[]>(() => {
-    // Check if we are in edit mode
-    const isEditMode = localStorage.getItem("mmpi_edit_mode") === "true";
-
-    if (isEditMode) {
-      // Return a perfectly sequential array [0, 1, 2, 3...]
-      return Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
-    }
-
-    const savedShuffle = localStorage.getItem("mmpi_shuffle_map");
-    if (savedShuffle) return JSON.parse(savedShuffle);
-
-    const indices = Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    localStorage.setItem("mmpi_shuffle_map", JSON.stringify(indices));
-    return indices;
-  });
 
   const [currentDisplayIdx, setCurrentDisplayIdx] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,15 +29,11 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   const totalAnswered = answers.filter((a) => a !== null).length;
   const isAllAnswered = totalAnswered === TOTAL_QUESTIONS;
 
-  // --- NEW: Force Exit / Clear Session Function ---
   const handleForceExit = () => {
-    // Wipe all session data
     localStorage.removeItem("mmpi_full_data");
     localStorage.removeItem("mmpi_phase1_data");
     localStorage.removeItem("mmpi_shuffle_map");
     localStorage.removeItem("mmpi_edit_mode");
-
-    // Return to dashboard
     onFinish();
   };
 
@@ -93,10 +65,16 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     initializeData();
   }, [pasienId]);
 
-  // --- DEBUG HOTKEY ('p') ---
+  // --- [UPDATED] HOTKEYS FOR FAST ENTRY ---
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "p") {
+      // Prevent action if modal is open to avoid background changes
+      if (isModalOpen || isLoadingQuestions) return;
+
+      const key = e.key.toLowerCase();
+
+      // DEBUG: Auto-fill all
+      if (key === "p") {
         console.log(
           "DEBUG: Auto-filling all 566 questions & sending bulk update...",
         );
@@ -112,19 +90,50 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           body: JSON.stringify({ pasien_id: pasienId, answers: dummyAnswers }),
         });
         console.log("DEBUG: Database successfully filled.");
+        return;
+      }
+
+      // QoL: 'y' for Ya (True), 't' for Tidak (False)
+      if (key === "y" || key === "t") {
+        const booleanAnswer = key === "y"; // 'y' is true, 't' is false
+
+        // 1. Update state immediately for UI
+        setAnswers((prev) => {
+          const newArr = [...prev];
+          newArr[currentDisplayIdx] = booleanAnswer;
+          return newArr;
+        });
+
+        // 2. Save to DB (Fire and forget)
+        fetch("http://localhost:3000/api/jawaban-temp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pasien_id: pasienId,
+            soal_id: currentDisplayIdx + 1,
+            jawaban: booleanAnswer ? "T" : "F",
+          }),
+        }).catch((err) => console.error("Gagal menyimpan progress:", err));
+
+        // 3. Move to next question if not at the end
+        if (currentDisplayIdx < TOTAL_QUESTIONS - 1) {
+          setCurrentDisplayIdx((prev) => prev + 1);
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pasienId]);
+  }, [pasienId, currentDisplayIdx, isModalOpen, isLoadingQuestions]); // Added dependencies to ensure it reads the latest index!
 
-  const realQuestionIdx = shuffledIndices[currentDisplayIdx];
+  const realQuestionIdx = currentDisplayIdx;
   const questionText = isLoadingQuestions
     ? "Memuat pertanyaan dari database..."
     : questions[realQuestionIdx] ||
       `Pertanyaan tidak ditemukan untuk indeks ${realQuestionIdx}`;
   const currentAnswer = answers[realQuestionIdx];
 
+  // Mouse click handler for answers
   const handleAnswer = (val: boolean) => {
     setAnswers((prev) => {
       const newArr = [...prev];
@@ -137,19 +146,16 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     const answerToSave = answers[realQuestionIdx];
 
     if (answerToSave !== null) {
-      try {
-        await fetch("http://localhost:3000/api/jawaban-temp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pasien_id: pasienId,
-            soal_id: realQuestionIdx + 1,
-            jawaban: answerToSave ? "T" : "F",
-          }),
-        });
-      } catch (err) {
-        console.error("Gagal menyimpan progress:", err);
-      }
+      // Fire-and-forget save for temporary answers
+      fetch("http://localhost:3000/api/jawaban-temp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pasien_id: pasienId,
+          soal_id: realQuestionIdx + 1,
+          jawaban: answerToSave ? "T" : "F",
+        }),
+      }).catch((err) => console.error("Gagal menyimpan progress:", err));
     }
     setCurrentDisplayIdx(newDisplayIdx);
   };
@@ -158,9 +164,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     setIsModalOpen(true);
   };
 
-  // --- FINAL SUBMIT (UPDATED WITH FAIL-SAFE) ---
-  const handleConfirmSubmit = async () => {
-    setIsSubmitting(true);
+  const handleConfirmSubmit = () => {
     try {
       const savedData = localStorage.getItem("mmpi_full_data");
       const parsedData = savedData ? JSON.parse(savedData) : {};
@@ -170,7 +174,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         parsedData.jenisKelamin === "Wanita" ? "Female" : "Male";
       const durasi = parsedData.durasiPengerjaan || "-";
 
-      const response = await fetch("http://localhost:3000/api/submit-test", {
+      fetch("http://localhost:3000/api/submit-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -178,39 +182,20 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           gender: mappedGender,
           durasi: durasi,
         }),
+      }).catch((error) => {
+        console.error("Background processing error:", error);
       });
 
-      // [FIX] Handle Ghost Data (User deleted in DB but exists in LocalStorage)
-      if (!response.ok) {
-        // If server returns error (like 500 FK violation), we assume the user is gone.
-        alert(
-          "Gagal memproses data. Peserta ini mungkin telah dihapus dari database. Sesi akan di-reset.",
-        );
-        handleForceExit(); // Clear storage and exit
-        return;
-      }
-
-      const result = await response.json();
-      console.log("Berhasil diproses oleh DOSBox:", result);
-
-      alert(
-        "Test Selesai! Data berhasil di proses oleh bot dan disimpan ke database.",
-      );
       setIsModalOpen(false);
       onFinish();
     } catch (error) {
-      console.error("Submission error:", error);
-      // Even if network fails, give option to exit?
-      // For now, standard alert, but the previous !response.ok block catches the main DB issue.
-      alert("Terjadi kesalahan koneksi atau server.");
-    } finally {
-      setIsSubmitting(false);
+      console.error("Submission setup error:", error);
+      alert("Terjadi kesalahan sistem saat menyiapkan data.");
     }
   };
 
   const getGridItemClass = (displayIdx: number) => {
-    const realIdx = shuffledIndices[displayIdx];
-    const ans = answers[realIdx];
+    const ans = answers[displayIdx];
     const isCurrent = displayIdx === currentDisplayIdx;
     const base =
       "w-10 h-10 flex items-center justify-center rounded-lg text-sm font-semibold border transition-all cursor-pointer select-none m-0.5";
@@ -222,7 +207,10 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   };
 
   return (
-    <div className="relative flex flex-col h-full w-full max-w-7xl mx-auto overflow-hidden">
+    <div
+      className="relative flex flex-col h-full w-full max-w-7xl mx-auto overflow-hidden outline-none"
+      tabIndex={0}
+    >
       {/* Header */}
       <div className="mb-6 shrink-0 flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2 text-black">
@@ -233,7 +221,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           <span>Input Jawaban Tes</span>
         </h2>
 
-        {/* [NEW] Manual Exit Button */}
+        {/* Manual Exit Button */}
         <button
           onClick={() => {
             if (
@@ -254,9 +242,14 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         {/* Left Column */}
         <div className="w-2/3 flex flex-col gap-6">
           <div className="bg-white rounded-xl p-1">
-            <h3 className="text-xl font-bold mb-4 text-black pl-1">
-              Pertanyaan {currentDisplayIdx + 1}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-black pl-1">
+                Pertanyaan {currentDisplayIdx + 1}
+              </h3>
+              <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded">
+                Hint: Tekan 'Y' atau 'T'
+              </span>
+            </div>
 
             <div className="w-full p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
               <p
@@ -278,7 +271,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                   disabled={isLoadingQuestions}
                   className="w-5 h-5 accent-blue-600"
                 />
-                <span className="text-gray-800 font-medium">Ya</span>
+                <span className="text-gray-800 font-medium">Setuju (Y)</span>
               </label>
 
               <label
@@ -292,7 +285,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                   disabled={isLoadingQuestions}
                   className="w-5 h-5 accent-blue-600"
                 />
-                <span className="text-gray-800 font-medium">Tidak</span>
+                <span className="text-gray-800 font-medium">Tidak Setuju (T)</span>
               </label>
             </div>
           </div>
@@ -344,17 +337,19 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pl-1 pt-1">
             <div className="grid grid-cols-5 gap-2 pb-4">
-              {shuffledIndices.map((_, displayIndex) => (
-                <div
-                  key={displayIndex}
-                  onClick={() =>
-                    !isLoadingQuestions && changeQuestionAndSave(displayIndex)
-                  }
-                  className={`${getGridItemClass(displayIndex)} ${isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {displayIndex + 1}
-                </div>
-              ))}
+              {Array.from({ length: TOTAL_QUESTIONS }).map(
+                (_, displayIndex) => (
+                  <div
+                    key={displayIndex}
+                    onClick={() =>
+                      !isLoadingQuestions && changeQuestionAndSave(displayIndex)
+                    }
+                    className={`${getGridItemClass(displayIndex)} ${isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    {displayIndex + 1}
+                  </div>
+                ),
+              )}
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-200">
@@ -417,17 +412,15 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                 <div className="flex gap-3 w-full">
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    disabled={isSubmitting}
-                    className="flex-1 py-2.5 rounded-lg bg-gray-500 text-white font-semibold hover:bg-gray-600 transition-colors disabled:opacity-50"
+                    className="flex-1 py-2.5 rounded-lg bg-gray-500 text-white font-semibold hover:bg-gray-600 transition-colors"
                   >
                     Kembali
                   </button>
                   <button
                     onClick={handleConfirmSubmit}
-                    disabled={isSubmitting}
-                    className="flex-1 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors flex items-center justify-center disabled:opacity-50"
+                    className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
                   >
-                    {isSubmitting ? "Memproses Bot..." : "Kumpulkan"}
+                    Kumpulkan
                   </button>
                 </div>
               </>

@@ -1,10 +1,11 @@
 // controllers/pesertaController.js
 const db = require('../config/db');
 
-// 1. Get all participants (UPDATED WITH FILTERING)
+// 1. Get all participants (UPDATED WITH DATE FILTERING)
 const getAllPeserta = async (req, res) => {
   try {
-    const { kodeSeri } = req.query; // Extract from URL parameters
+    // Extract query parameters
+    const { kodeSeri, startDate, endDate } = req.query; 
 
     let query = `
       SELECT 
@@ -13,13 +14,23 @@ const getAllPeserta = async (req, res) => {
         jenis_kelamin AS "jenisKelamin",
         tanggal_pemeriksaan_date AS "tanggalPemeriksaanDate"
       FROM pasien
+      WHERE 1=1
     `;
     let queryParams = [];
+    let paramIndex = 1;
 
-    // If a kodeSeri is provided, filter the results
+    // Filter by Doctor's Kode Seri
     if (kodeSeri) {
-      query += ` WHERE pasien_id LIKE $1 OR pasien_id NOT LIKE '%-%'`;
-      queryParams.push(`${kodeSeri}-%`); // E.g., 'xyz-%'
+      query += ` AND (pasien_id LIKE $${paramIndex} OR pasien_id NOT LIKE '%-%')`;
+      queryParams.push(`${kodeSeri}-%`);
+      paramIndex++;
+    }
+
+    // Filter by Date Range
+    if (startDate && endDate) {
+      query += ` AND tanggal_pemeriksaan_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      queryParams.push(startDate, endDate);
+      paramIndex += 2;
     }
 
     query += ` ORDER BY tanggal_pemeriksaan_date DESC;`;

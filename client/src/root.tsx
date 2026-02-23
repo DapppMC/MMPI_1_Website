@@ -5,7 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import Login from "./Login";
+import Login from "./patient/Login";
 import AdminLogin from "./admin/Login"; // Import Admin Login
 import AdminDashboard from "./admin/Dashboard";
 

@@ -1,7 +1,7 @@
 // src/Login.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import loginBg from "./assets/login_bg.png";
+import loginBg from "../assets/login_bg.png";
 
 const Login: React.FC = () => {
   const [serialNumber, setSerialNumber] = useState("");

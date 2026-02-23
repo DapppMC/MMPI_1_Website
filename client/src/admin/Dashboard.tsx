@@ -15,6 +15,7 @@ import importIcon from "../assets/icons/light_mode/import.svg";
 import darkModeIcon from "../assets/icons/light_mode/dark_mode.svg";
 import swapIcon from "../assets/icons/light_mode/swap_horiz.svg";
 import logoutIcon from "../assets/icons/light_mode/move_item.svg";
+import arrowRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
 
 import menuBlue from "../assets/icons/blue/menu.svg";
 import menuOpenBlue from "../assets/icons/blue/menu_open.svg";
@@ -37,6 +38,7 @@ import TampilkanData from "./TampilkanData";
 import CetakData from "./CetakData";
 import PreviewCetak from "./PreviewCetak";
 import HapusData from "./HapusData"; // [NEW IMPORT]
+import ExportData from "./ExportData"; // [NEW IMPORT]
 import { type ParticipantData } from "../data/participants";
 
 // --- Helper Component ---
@@ -119,8 +121,9 @@ const AdminDashboard: React.FC = () => {
   const [pengisianData, setPengisianData] =
     useState<PengisianDataVariables | null>(null);
 
+  // [UPDATED] Added "previewExport" to the list
   const [pesertaViewMode, setPesertaViewMode] = useState<
-    "list" | "detail" | "print" | "preview" | "delete"
+    "list" | "detail" | "print" | "preview" | "delete" | "previewExport"
   >("list");
   const [dataToPrint, setDataToPrint] = useState<ParticipantData[]>([]);
   const [selectedParticipant, setSelectedParticipant] =
@@ -379,10 +382,10 @@ const AdminDashboard: React.FC = () => {
         }
 
         return (
-          <div className="flex flex-col gap-6">
-            <h2 className="text-lg font-bold flex items-center gap-2">
+          <div className="flex flex-col gap-6 max-w-5xl mx-auto">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-black">
               <span className="text-black">MMPI</span>
-              <span className="text-gray-3 font-normal">&rsaquo;</span>
+              <img src={arrowRightIcon} alt="arrow" className="w-5 h-5" />
               <span className="text-black">Daftar Peserta</span>
             </h2>
             {/* [UPDATED] Pass the new onEdit function to DaftarPeserta */}
@@ -395,7 +398,25 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
       case "export":
-        return <ExportDataContent />;
+        // [NEW] If the state is previewExport, show the Preview screen!
+        if (pesertaViewMode === "previewExport") {
+          return (
+            <PreviewCetak
+              dataToPrint={dataToPrint}
+              onBack={() => setPesertaViewMode("list")} // Resets back to default export view
+            />
+          );
+        }
+
+        // Default Export View
+        return (
+          <ExportData
+            onPrintAll={(data) => {
+              setDataToPrint(data);
+              setPesertaViewMode("previewExport"); // Triggers the preview above
+            }}
+          />
+        );
       case "import":
         return <ImportDataContent />;
       default:
@@ -535,6 +556,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};;;
+};;;;
 
 export default AdminDashboard;
