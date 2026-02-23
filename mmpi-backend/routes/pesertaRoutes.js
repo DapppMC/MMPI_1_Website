@@ -15,4 +15,7 @@ router.post('/pasien', pesertaController.upsertPeserta);
 // Route: /api/peserta/delete (NEW: Delete user data)
 router.post('/peserta/delete', pesertaController.deletePeserta);
 
+// [NEW] Route for patient login
+router.post('/peserta/login', pesertaController.loginPeserta);
+
 module.exports = router;

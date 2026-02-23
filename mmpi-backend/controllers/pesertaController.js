@@ -165,5 +165,46 @@ const deletePeserta = async (req, res) => {
   }
 };
 
-// Don't forget to export the new function!
-module.exports = { getAllPeserta, getPesertaReport, upsertPeserta, deletePeserta };
+// [NEW] Login function for Peserta (Patient)
+const loginPeserta = async (req, res) => {
+  const { pasien_id } = req.body;
+
+  if (!pasien_id) {
+    return res.status(400).json({ success: false, message: "Nomor ID wajib diisi" });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        pasien_id AS "idPeserta", 
+        nama, 
+        jenis_kelamin AS "jenisKelamin"
+      FROM public.pasien 
+      WHERE pasien_id = $1
+    `;
+    
+    const result = await db.query(query, [pasien_id]);
+
+    if (result.rows.length > 0) {
+      res.json({ 
+        success: true, 
+        message: "Login berhasil",
+        user: result.rows[0] 
+      });
+    } else {
+      res.status(401).json({ success: false, message: "Nomor ID tidak ditemukan. Silakan hubungi dokter/admin." });
+    }
+  } catch (err) {
+    console.error("Login Peserta error:", err.message);
+    res.status(500).json({ success: false, message: "Terjadi kesalahan pada server" });
+  }
+};
+
+// Don't forget to export it!
+module.exports = { 
+  getAllPeserta, 
+  getPesertaReport, 
+  upsertPeserta, 
+  deletePeserta,
+  loginPeserta // [NEW] Add this here
+};
