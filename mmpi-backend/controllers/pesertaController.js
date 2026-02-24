@@ -405,6 +405,107 @@ const getPesertaForProses = async (req, res) => {
   }
 };
 
+// [NEW] Generate bulk patient accounts
+const generateAkunPasien = async (req, res) => {
+  const { testDate, count, kodeSeri } = req.body;
+
+  if (!testDate || !count || !kodeSeri) {
+    return res.status(400).json({ error: "Data tidak lengkap" });
+  }
+
+  try {
+    // 1. Format date from YYYY-MM-DD to DDMMYYYY
+    const [year, month, day] = testDate.split('-');
+    const dateStr = `${day}${month}${year}`; // e.g., 24022026
+    const prefix = `${kodeSeri}-${dateStr}`; // e.g., xyz-24022026
+
+    await db.query('BEGIN');
+
+    // 2. Find the highest existing number for this specific prefix
+    const maxQuery = `
+      SELECT pasien_id 
+      FROM pasien 
+      WHERE pasien_id LIKE $1 
+      ORDER BY pasien_id DESC 
+      LIMIT 1
+    `;
+    const maxRes = await db.query(maxQuery, [`${prefix}%`]);
+
+    let startIndex = 1;
+    if (maxRes.rows.length > 0) {
+      const lastId = maxRes.rows[0].pasien_id;
+      // Extract the last 4 digits
+      const last4 = lastId.slice(-4);
+      const parsedNum = parseInt(last4, 10);
+      if (!isNaN(parsedNum)) {
+        startIndex = parsedNum + 1; // Start from the next available number
+      }
+    }
+
+    const generatedAccounts = [];
+
+    // 3. Loop to generate and insert the new accounts
+    for (let i = 0; i < count; i++) {
+      // Pad with leading zeros (e.g., 1 -> '0001', 12 -> '0012')
+      const numStr = String(startIndex + i).padStart(4, '0');
+      const pasienId = `${prefix}${numStr}`;
+      
+      // Generate a random 6-digit number (100000 to 999999)
+      const kodeKeluar = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // [UPDATED] Provide a placeholder 'nama' to satisfy the NOT NULL constraint
+      await db.query(`
+        INSERT INTO pasien (pasien_id, tanggal_pemeriksaan_date, kode_keluar, nama) 
+        VALUES ($1, $2, $3, $4)
+      `, [pasienId, testDate, kodeKeluar, 'Peserta Baru']);
+
+      generatedAccounts.push({ pasienId, kodeKeluar, testDate });
+    }
+
+    await db.query('COMMIT');
+    
+    res.json({ success: true, accounts: generatedAccounts });
+  } catch (err) {
+    await db.query('ROLLBACK');
+    console.error("Error generating accounts:", err.message);
+    res.status(500).json({ error: "Server Error saat membuat akun" });
+  }
+};
+
+// [NEW] Verify Exit Code for early exam exit
+const verifyExitCode = async (req, res) => {
+  const { pasien_id, kode_keluar } = req.body;
+
+  if (!pasien_id || !kode_keluar) {
+    return res.status(400).json({ success: false, error: "ID Pasien atau Kode Keluar kosong" });
+  }
+
+  try {
+    const query = `
+      SELECT kode_keluar 
+      FROM pasien 
+      WHERE pasien_id = $1
+    `;
+    const result = await db.query(query, [pasien_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: "Data pasien tidak ditemukan" });
+    }
+
+    const dbKodeKeluar = result.rows[0].kode_keluar;
+
+    // Direct string comparison
+    if (dbKodeKeluar === kode_keluar) {
+      res.json({ success: true, message: "Otorisasi berhasil" });
+    } else {
+      res.status(403).json({ success: false, error: "Kode keluar salah." });
+    }
+  } catch (err) {
+    console.error("Verify Exit Code error:", err.message);
+    res.status(500).json({ success: false, error: "Terjadi kesalahan server" });
+  }
+};
+
 // Don't forget to export them!
 module.exports = { 
   getAllPeserta, 
@@ -413,7 +514,9 @@ module.exports = {
   deletePeserta,
   loginPeserta,
   getPesertaById,
-  startTestStatus,   // <--- Add this
-  finishTestStatus,   // <--- Add this
-  getPesertaForProses
+  startTestStatus,  
+  finishTestStatus,   
+  getPesertaForProses,
+  generateAkunPasien,
+  verifyExitCode
 };

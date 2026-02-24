@@ -463,14 +463,21 @@ const ProsesData: React.FC = () => {
       <div className="absolute bottom-6 right-6 z-10">
         <button
           onClick={handleNilaiTesClick}
-          disabled={selectedIds.length === 0}
-          className={`bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl flex items-center gap-2 ${
-            selectedIds.length === 0
-              ? "opacity-50 cursor-not-allowed"
-              : "hover:bg-green-700 hover:scale-105"
+          disabled={selectedIds.length === 0 || isProcessing}
+          className={`px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl flex items-center gap-2 ${
+            selectedIds.length === 0 || isProcessing
+              ? "bg-gray-500 text-gray-200 opacity-50 cursor-not-allowed"
+              : "bg-green-600 text-white hover:bg-green-700 hover:scale-105"
           }`}
         >
-          Nilai Tes ({selectedIds.length})
+          {isProcessing ? (
+            <>
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              Memproses ({processProgress.current}/{processProgress.total})...
+            </>
+          ) : (
+            `Nilai Tes (${selectedIds.length})`
+          )}
         </button>
       </div>
     </div>

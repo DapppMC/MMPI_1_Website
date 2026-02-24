@@ -28,14 +28,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   const totalAnswered = answers.filter((a) => a !== null).length;
   const isAllAnswered = totalAnswered === TOTAL_QUESTIONS;
 
-  const handleForceExit = () => {
-    localStorage.removeItem("mmpi_full_data");
-    localStorage.removeItem("mmpi_phase1_data");
-    localStorage.removeItem("mmpi_shuffle_map");
-    localStorage.removeItem("mmpi_edit_mode");
-    onFinish();
-  };
-
   // --- INITIAL LOAD FROM DATABASE ---
   useEffect(() => {
     const initializeData = async () => {
@@ -73,14 +65,12 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
 
   // --- MOUSE CLICK HANDLER (WITH AUTO-SAVE) ---
   const handleAnswer = (val: boolean) => {
-    // 1. Update UI state instantly
     setAnswers((prev) => {
       const newArr = [...prev];
       newArr[realQuestionIdx] = val;
       return newArr;
     });
 
-    // 2. Fire-and-forget save to database to prevent data loss
     fetch("http://localhost:3000/api/jawaban-temp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -103,7 +93,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   // --- FINAL SUBMIT ---
   const handleConfirmSubmit = async () => {
     try {
-      // Replaced microservice trigger with a bulk database save
       await fetch("http://localhost:3000/api/jawaban-temp/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +102,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         }),
       });
 
-      // 2. [NEW] Stop the timer and update status to 'Selesai'
       const statusRes = await fetch(
         "http://localhost:3000/api/test-status/finish",
         {
@@ -123,17 +111,14 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         },
       );
       const statusData = await statusRes.json();
-
-      // Extract the HH:MM duration returned by the backend (or fallback to "-")
       const durasiTest = statusData.durasi_formatted || "-";
 
-      // 3. Convert temp answers to string and save to jawaban_fix + test_output
       await fetch("http://localhost:3000/api/submit-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pasien_id: pasienId,
-          durasi: durasiTest, // Pass the captured duration here!
+          durasi: durasiTest,
         }),
       });
 
@@ -162,7 +147,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       className="relative flex flex-col h-full w-full max-w-7xl mx-auto overflow-hidden outline-none"
       tabIndex={0}
     >
-      {/* Header */}
       <div className="mb-6 shrink-0 flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2 text-black">
           <span>MMPI</span>
@@ -174,7 +158,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       </div>
 
       <div className="flex-1 flex gap-8 overflow-hidden">
-        {/* Left Column */}
         <div className="w-2/3 flex flex-col gap-6">
           <div className="bg-white rounded-xl p-1">
             <div className="flex justify-between items-center mb-4">
@@ -259,7 +242,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           </div>
         </div>
 
-        {/* Right Column */}
         <div className="w-1/3 flex flex-col bg-gray-50 border-l border-gray-200 pl-8">
           <div className="mb-4">
             <h3 className="font-bold text-lg mb-1">Navigasi Soal</h3>

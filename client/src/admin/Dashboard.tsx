@@ -36,14 +36,15 @@ import PengisianDataDiri, {
   type PengisianDataVariables,
 } from "./PengisianDataDiri";
 import PengisianDataTest from "./PengisianDataTest";
-import Profile from "./Profile"; // [NEW IMPORT]
+import Profile from "./Profile"; 
 import DaftarPeserta from "./DaftarPeserta";
 import TampilkanData from "./TampilkanData";
 import CetakData from "./CetakData";
 import PreviewCetak from "./PreviewCetak";
-import HapusData from "./HapusData"; // [NEW IMPORT]
-import ExportData from "./ExportData"; // [NEW IMPORT]
+import HapusData from "./HapusData";
+import ExportData from "./ExportData"; 
 import ProsesData from "./ProsesData";
+import BuatAkunPasien from "./BuatAkunPasien";
 import { type ParticipantData } from "../data/participants";
 
 // --- Helper Component ---
@@ -427,7 +428,7 @@ const AdminDashboard: React.FC = () => {
       case "proses_data":
         return <ProsesData />;
       case "buat_akun":
-        return <BuatAkunContent />;
+        return <BuatAkunPasien />;
       case "import":
         return <ImportDataContent />;
       default:

@@ -29,4 +29,10 @@ router.post('/test-status/finish', pesertaController.finishTestStatus);
 // [NEW] Routes for filtering peserta that is illegible for grading
 router.get('/peserta-proses', pesertaController.getPesertaForProses);
 
+// [NEW] Routes for generating a new patient
+router.post('/peserta/generate', pesertaController.generateAkunPasien);
+
+// [NEW] Routes for verifying exit code
+router.post('/peserta/verify-exit', pesertaController.verifyExitCode);
+
 module.exports = router;

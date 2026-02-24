@@ -15,8 +15,8 @@ import keyboardBlue from "../assets/icons/blue/keyboard.svg";
 // --- Component Imports ---
 import PengisianDataDiri, {
   type PengisianDataVariables,
-} from "./PengisianDataDiri"; // Adjust path to point to your existing component!
-import PengisianDataTest from "./PengisianDataTest"; // Adjust path!
+} from "./PengisianDataDiri";
+import PengisianDataTest from "./PengisianDataTest";
 
 // --- Helper Component ---
 interface SidebarItemProps {
@@ -65,21 +65,15 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 const PatientDashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  // Route Protection Logic
   useEffect(() => {
-    // Check if the patient's info is in localStorage
     const activePeserta = localStorage.getItem("active_peserta");
-
-    // If no patient is logged in, redirect them to the login page immediately
     if (!activePeserta) {
-      navigate("/", { replace: true }); // Adjust route to your patient login
+      navigate("/", { replace: true });
     }
   }, [navigate]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  // The only feature available is 'pengisian'
   const [selectedFeature, setSelectedFeature] = useState<string>("pengisian");
 
   const [pengisianPhase, setPengisianPhase] = useState<1 | 2>(() => {
@@ -90,10 +84,15 @@ const PatientDashboard: React.FC = () => {
   const [pengisianData, setPengisianData] =
     useState<PengisianDataVariables | null>(null);
 
+  // --- [NEW] Exit Modal States ---
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [exitCode, setExitCode] = useState("");
+  const [exitError, setExitError] = useState("");
+  const [isVerifyingExit, setIsVerifyingExit] = useState(false);
+
   const [hoverArrow, setHoverArrow] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -115,28 +114,60 @@ const PatientDashboard: React.FC = () => {
   };
 
   const handleTestFinished = () => {
-    // Clear out the temporary test progression data
     localStorage.removeItem("mmpi_full_data");
     localStorage.removeItem("mmpi_phase1_data");
     localStorage.removeItem("mmpi_shuffle_map");
     localStorage.removeItem("mmpi_edit_mode");
-
-    // Once finished, log the patient out automatically for security
-    handleLogout();
+    localStorage.removeItem("active_peserta");
+    navigate("/finish", { replace: true });
   };
 
-  const handleLogout = () => {
-    // Clear the active patient session
-    localStorage.removeItem("active_peserta");
+  // --- [UPDATED] Authorized Logout Logic ---
+  const handleVerifyExit = async () => {
+    if (!exitCode || exitCode.length < 6) {
+      setExitError("Kode keluar harus terdiri dari 6 digit.");
+      return;
+    }
 
-    // Clear any pending test data just to be safe
-    localStorage.removeItem("mmpi_full_data");
-    localStorage.removeItem("mmpi_phase1_data");
-    localStorage.removeItem("mmpi_shuffle_map");
-    localStorage.removeItem("mmpi_edit_mode");
+    setIsVerifyingExit(true);
+    setExitError("");
 
-    // Send them back to the login screen
-    navigate("/finish", { replace: true });
+    try {
+      const activePesertaStr = localStorage.getItem("active_peserta");
+      if (!activePesertaStr) return; // Failsafe
+
+      const activePeserta = JSON.parse(activePesertaStr);
+      const pasienId = activePeserta.idPeserta || activePeserta.pasien_id;
+
+      const response = await fetch(
+        "http://localhost:3000/api/peserta/verify-exit",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pasien_id: pasienId, kode_keluar: exitCode }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Verification passed! Wipe session and kick to login.
+        setIsExitModalOpen(false);
+        localStorage.removeItem("active_peserta");
+        localStorage.removeItem("mmpi_full_data");
+        localStorage.removeItem("mmpi_phase1_data");
+        localStorage.removeItem("mmpi_shuffle_map");
+        localStorage.removeItem("mmpi_edit_mode");
+        navigate("/", { replace: true });
+      } else {
+        setExitError(data.error || "Kode keluar tidak valid.");
+      }
+    } catch (err) {
+      console.error("Verification error:", err);
+      setExitError("Gagal memverifikasi kode. Periksa koneksi.");
+    } finally {
+      setIsVerifyingExit(false);
+    }
   };
 
   const renderContent = () => {
@@ -152,7 +183,6 @@ const PatientDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-full font-sans overflow-hidden bg-white text-black">
-      {/* Header */}
       <header className="h-[10%] w-full bg-gray-5 border-b border-gray-6 flex items-center justify-between px-6 shrink-0 z-20 relative">
         <div className="flex items-center gap-4">
           <button
@@ -169,7 +199,6 @@ const PatientDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Patient Header Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -186,9 +215,12 @@ const PatientDashboard: React.FC = () => {
 
             {isDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-6 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                {/* Simplified Logout Button */}
                 <div
-                  onClick={handleLogout}
+                  // [UPDATED] Trigger the modal instead of immediate logout
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    setIsExitModalOpen(true);
+                  }}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors text-md font-medium text-gray-800"
                 >
                   <img
@@ -204,9 +236,7 @@ const PatientDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Layout */}
       <div className="flex h-[90%] w-full relative">
-        {/* Simplified Sidebar */}
         <aside
           className={`bg-gray-5 border-r border-gray-6 flex flex-col py-6 shrink-0 justify-between overflow-hidden transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-[20%] opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-10 border-none"}`}
         >
@@ -222,11 +252,73 @@ const PatientDashboard: React.FC = () => {
           </div>
         </aside>
 
-        {/* Content Area */}
         <main className="flex-1 bg-white relative overflow-auto p-8 transition-all duration-300">
           {renderContent()}
         </main>
       </div>
+
+      {/* --- [NEW] EXIT AUTHORIZATION MODAL --- */}
+      {isExitModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[450px] flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 relative z-10">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              Otorisasi Keluar
+            </h3>
+            <p className="text-red-600 font-medium text-sm bg-red-50 py-2 px-4 rounded-lg w-full mb-6 border border-red-200">
+              Untuk mendapatkan kode ini, mohon menghubungi staf kesehatan.
+            </p>
+
+            <input
+              type="text"
+              maxLength={6}
+              placeholder="Masukkan 6 Digit Kode"
+              value={exitCode}
+              onChange={(e) => {
+                const numericValue = e.target.value.replace(/[^0-9]/g, "");
+                setExitCode(numericValue);
+                setExitError("");
+              }}
+              className={`w-full text-center text-2xl tracking-[0.5em] font-mono py-4 border-2 rounded-xl focus:outline-none focus:ring-4 transition-all ${
+                exitError
+                  ? "border-red-500 focus:ring-red-200"
+                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-100"
+              }`}
+            />
+
+            {exitError && (
+              <p className="text-red-500 text-sm font-semibold mt-3 animate-pulse">
+                {exitError}
+              </p>
+            )}
+
+            <div className="flex gap-4 w-full mt-8">
+              <button
+                onClick={() => {
+                  setIsExitModalOpen(false);
+                  setExitCode("");
+                  setExitError("");
+                }}
+                disabled={isVerifyingExit}
+                className="flex-1 py-3 rounded-xl bg-gray-200 text-gray-700 font-bold hover:bg-gray-300 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleVerifyExit}
+                disabled={isVerifyingExit || exitCode.length < 6}
+                className={`flex-1 py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center ${
+                  isVerifyingExit || exitCode.length < 6
+                    ? "bg-red-400 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700 shadow-md"
+                }`}
+              >
+                {isVerifyingExit ? "Memeriksa..." : "Keluar Tes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
