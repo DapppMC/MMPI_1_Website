@@ -1,13 +1,12 @@
 // controllers/submissionController.js
 const db = require('../config/db');
 
-// This function handles ONLY the logic for submitting the test
+// --- 1. JUST SUBMIT THE TEST (Called when patient finishes) ---
 const submitTest = async (req, res) => {
-  // [FIX 1] Extract 'durasi' from the frontend request
-  const { pasien_id, gender, durasi } = req.body; 
+  const { pasien_id, durasi } = req.body; 
 
-  if (!pasien_id || !gender) {
-    return res.status(400).json({ error: "Missing required fields" });
+  if (!pasien_id) {
+    return res.status(400).json({ error: "Missing required fields: pasien_id" });
   }
 
   try {
@@ -21,21 +20,62 @@ const submitTest = async (req, res) => {
     }
 
     const jawabanFixString = tempAnswers.rows.map(row => row.jawaban).join('');
-    const booleanAnswers = tempAnswers.rows.map(row => row.jawaban === 'T'); 
     
     // Cleanup old data
     await db.query('DELETE FROM jawaban_fix WHERE pasien_id = $1', [pasien_id]);
     await db.query('DELETE FROM test_output WHERE pasien_id = $1', [pasien_id]);
     
-    // Save Fixed Answers
+    // Save Fixed Answers (Mark is_sent as false since it hasn't been processed yet)
     await db.query(
       `INSERT INTO jawaban_fix (pasien_id, jawaban_fix, is_sent) VALUES ($1, $2, $3)`,
-      [pasien_id, jawabanFixString, true]
+      [pasien_id, jawabanFixString, false]
     );
+
+    // Save the duration initially (hasil_output_ms will be null for now)
+    const finalDurasi = durasi || "-"; 
+    await db.query(
+      `INSERT INTO test_output (pasien_id, durasi_pengerjaan) VALUES ($1, $2)`,
+      [pasien_id, finalDurasi] 
+    );
+
+    console.log(`[SUCCESS] Test submitted successfully for: ${pasien_id}`);
+    res.json({ success: true, message: "Data tes berhasil disimpan permanen." });
+
+  } catch (err) {
+    console.error("Submission error:", err.message);
+    res.status(500).json({ error: 'Server Error', details: err.message });
+  }
+};
+
+
+// --- 2. TRIGGER THE MICROSERVICE (Called by Admin/System later) ---
+const processTest = async (req, res) => {
+  // We need gender here because the Python script requires it for scoring
+  const { pasien_id, gender } = req.body;
+
+  if (!pasien_id || !gender) {
+    return res.status(400).json({ error: "Missing required fields: pasien_id, gender" });
+  }
+
+  try {
+    // 1. Fetch the locked answers from the database
+    const fixResult = await db.query(
+      'SELECT jawaban_fix FROM jawaban_fix WHERE pasien_id = $1',
+      [pasien_id]
+    );
+
+    if (fixResult.rows.length === 0) {
+      return res.status(404).json({ error: "No submitted answers found for this patient." });
+    }
+
+    const jawabanFixString = fixResult.rows[0].jawaban_fix;
+    
+    // Convert 'T'/'F' string back into a boolean array for the Python bot
+    const booleanAnswers = jawabanFixString.split('').map(char => char === 'T');
 
     console.log(`[BOT] Waking up Python DOSBox bot for patient: ${pasien_id}...`);
     
-    // Call Python Microservice
+    // 2. Call Python Microservice
     const pythonResponse = await fetch('http://127.0.0.1:8000/process-mmpi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,12 +91,16 @@ const submitTest = async (req, res) => {
     if (pythonData.status === "success") {
       const scoresJson = JSON.stringify(pythonData.scores);
       
-      // [FIX 2] Use the real duration from the frontend, or fallback to "-"
-      const finalDurasi = durasi || "-"; 
-      
+      // 3. UPDATE the existing test_output row with the new scores
       await db.query(
-        `INSERT INTO test_output (pasien_id, hasil_output_ms, durasi_pengerjaan) VALUES ($1, $2, $3)`,
-        [pasien_id, scoresJson, finalDurasi] // Use finalDurasi here!
+        `UPDATE test_output SET hasil_output_ms = $1 WHERE pasien_id = $2`,
+        [scoresJson, pasien_id] 
+      );
+
+      // 4. Mark the answers as sent/processed
+      await db.query(
+        `UPDATE jawaban_fix SET is_sent = true WHERE pasien_id = $1`,
+        [pasien_id]
       );
 
       console.log(`[SUCCESS] Scores saved for patient: ${pasien_id}`);
@@ -66,9 +110,9 @@ const submitTest = async (req, res) => {
     }
 
   } catch (err) {
-    console.error("Submission error:", err.message);
+    console.error("Microservice processing error:", err.message);
     res.status(500).json({ error: 'Server Error', details: err.message });
   }
 };
 
-module.exports = { submitTest };
+module.exports = { submitTest, processTest };

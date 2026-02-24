@@ -163,7 +163,7 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
                         <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-gray-6 rounded-lg shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
                           <div
                             onClick={() => onViewDetail(item)}
-                            className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors border-b border-gray-1/50"
+                            className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors border-t border-gray-1/50"
                           >
                             <img
                               src={IconList}
@@ -206,7 +206,7 @@ const DaftarPeserta: React.FC<DaftarPesertaProps> = ({
 
                           <div
                             onClick={onDeleteMode} // [NEW] Attach the click handler here
-                            className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors text-red-1 border-t border-gray-1/50"
+                            className="px-4 py-3 hover:bg-gray-2 cursor-pointer flex items-center gap-3 transition-colors text-red-1 border-b border-gray-1/50"
                           >
                             <img
                               src={IconDelete}

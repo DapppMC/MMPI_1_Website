@@ -538,7 +538,8 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setSelectedFeature("import")}
             />
           </div>
-          <div className="px-4 mb-2 min-w-50 font-medium text-xl">
+          {/* Kalau mau tambahin Dark Mode ada di sini */}
+          {/* <div className="px-4 mb-2 min-w-50 font-medium text-xl">
             <SidebarItem
               label="Mode Gelap"
               defaultIcon={darkModeIcon}
@@ -547,7 +548,7 @@ const AdminDashboard: React.FC = () => {
               isSelected={isDarkMode}
               onClick={() => setIsDarkMode(!isDarkMode)}
             />
-          </div>
+          </div> */}
         </aside>
 
         <main className="flex-1 bg-white relative overflow-auto p-8 transition-all duration-300 print:overflow-visible print:h-auto print:p-0 print:absolute print:top-0 print:left-0 print:w-full print:z-50">

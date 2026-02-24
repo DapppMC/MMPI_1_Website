@@ -114,10 +114,27 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       });
 
       // 2. [NEW] Stop the timer and update status to 'Selesai'
-      await fetch("http://localhost:3000/api/test-status/finish", {
+      const statusRes = await fetch(
+        "http://localhost:3000/api/test-status/finish",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pasien_id: pasienId }),
+        },
+      );
+      const statusData = await statusRes.json();
+
+      // Extract the HH:MM duration returned by the backend (or fallback to "-")
+      const durasiTest = statusData.durasi_formatted || "-";
+
+      // 3. Convert temp answers to string and save to jawaban_fix + test_output
+      await fetch("http://localhost:3000/api/submit-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pasien_id: pasienId }),
+        body: JSON.stringify({
+          pasien_id: pasienId,
+          durasi: durasiTest, // Pass the captured duration here!
+        }),
       });
 
       setIsModalOpen(false);
@@ -154,22 +171,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
           <img src={chevronRightIcon} alt=">" className="w-5 h-5 opacity-50" />
           <span>Input Jawaban Tes</span>
         </h2>
-
-        {/* Manual Exit Button */}
-        <button
-          onClick={() => {
-            if (
-              window.confirm(
-                "Apakah anda yakin ingin membatalkan tes? Semua progress sesi ini akan hilang.",
-              )
-            ) {
-              handleForceExit();
-            }
-          }}
-          className="text-white font-medium text-sm flex items-center gap-1 transition-colors px-3 py-1 rounded-md bg-red-1 hover:bg-red-500"
-        >
-          <span>Batal / Keluar</span>
-        </button>
       </div>
 
       <div className="flex-1 flex gap-8 overflow-hidden">
