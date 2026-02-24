@@ -304,7 +304,7 @@ const ExportData: React.FC<ExportDataProps> = ({ onPrintAll }) => {
                     <th className="px-4 py-3">Nama Peserta</th>
                     <th className="px-4 py-3">Jenis Kelamin</th>
                     <th className="pl-4 pr-6 py-3 rounded-tr-lg text-right">
-                      Tanggal Pemeriksaan
+                      Tanggal Pemeriksaan (DD/MM/YYYY)
                     </th>
                   </tr>
                 </thead>

@@ -360,6 +360,51 @@ const finishTestStatus = async (req, res) => {
   }
 };
 
+// [NEW] Get participants specifically for Proses Data (Only those in jawaban_fix)
+const getPesertaForProses = async (req, res) => {
+  try {
+    const { kodeSeri, startDate, endDate } = req.query; 
+
+    // INNER JOIN guarantees we ONLY fetch patients who exist in jawaban_fix
+    // It also lets us grab the is_sent status in the exact same trip!
+    let query = `
+      SELECT 
+        p.pasien_id AS "idPeserta",
+        p.nama,
+        p.jenis_kelamin AS "jenisKelamin",
+        p.tanggal_pemeriksaan_date AS "tanggalPemeriksaanDate",
+        j.is_sent
+      FROM pasien p
+      INNER JOIN jawaban_fix j ON p.pasien_id = j.pasien_id
+      WHERE 1=1
+    `;
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // Filter by Doctor's Kode Seri
+    if (kodeSeri) {
+      query += ` AND (p.pasien_id LIKE $${paramIndex} OR p.pasien_id NOT LIKE '%-%')`;
+      queryParams.push(`${kodeSeri}-%`);
+      paramIndex++;
+    }
+
+    // Filter by Date Range
+    if (startDate && endDate) {
+      query += ` AND p.tanggal_pemeriksaan_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      queryParams.push(startDate, endDate);
+      paramIndex += 2;
+    }
+
+    query += ` ORDER BY p.tanggal_pemeriksaan_date DESC;`;
+
+    const result = await db.query(query, queryParams);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error in getPesertaForProses:", err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
 // Don't forget to export them!
 module.exports = { 
   getAllPeserta, 
@@ -369,5 +414,6 @@ module.exports = {
   loginPeserta,
   getPesertaById,
   startTestStatus,   // <--- Add this
-  finishTestStatus   // <--- Add this
+  finishTestStatus,   // <--- Add this
+  getPesertaForProses
 };

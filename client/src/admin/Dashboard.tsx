@@ -16,6 +16,8 @@ import darkModeIcon from "../assets/icons/light_mode/dark_mode.svg";
 import swapIcon from "../assets/icons/light_mode/swap_horiz.svg";
 import logoutIcon from "../assets/icons/light_mode/move_item.svg";
 import arrowRightIcon from "../assets/icons/light_mode/keyboard_arrow_right.svg";
+import processDataIcon from "../assets/icons/light_mode/process_data.svg";
+import addPatientIcon from "../assets/icons/light_mode/add_patient.svg";
 
 import menuBlue from "../assets/icons/blue/menu.svg";
 import menuOpenBlue from "../assets/icons/blue/menu_open.svg";
@@ -26,6 +28,8 @@ import groupsBlue from "../assets/icons/blue/groups.svg";
 import uploadBlue from "../assets/icons/blue/upload.svg";
 import downloadBlue from "../assets/icons/blue/download.svg";
 import darkModeBlue from "../assets/icons/blue/dark_mode.svg";
+import processDataBlue from "../assets/icons/blue/process_data.svg";
+import addPatientBlue from "../assets/icons/blue/add_patient.svg";
 
 // --- Component Imports ---
 import PengisianDataDiri, {
@@ -39,6 +43,7 @@ import CetakData from "./CetakData";
 import PreviewCetak from "./PreviewCetak";
 import HapusData from "./HapusData"; // [NEW IMPORT]
 import ExportData from "./ExportData"; // [NEW IMPORT]
+import ProsesData from "./ProsesData";
 import { type ParticipantData } from "../data/participants";
 
 // --- Helper Component ---
@@ -85,11 +90,12 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
-const ExportDataContent = () => (
-  <h2 className="text-2xl font-bold">Konten Export Data</h2>
-);
 const ImportDataContent = () => (
   <h2 className="text-2xl font-bold">Mohon Menunggu Update Selanjutnya~</h2>
+);
+// [NEW] Placeholder for Buat Akun Pasien
+const BuatAkunContent = () => (
+  <h2 className="text-2xl font-bold">Konten Buat Akun Pasien</h2>
 );
 
 const AdminDashboard: React.FC = () => {
@@ -417,6 +423,11 @@ const AdminDashboard: React.FC = () => {
             }}
           />
         );
+      // [NEW] Added cases for the new sidebar elements
+      case "proses_data":
+        return <ProsesData />;
+      case "buat_akun":
+        return <BuatAkunContent />;
       case "import":
         return <ImportDataContent />;
       default:
@@ -520,6 +531,24 @@ const AdminDashboard: React.FC = () => {
                 setPesertaViewMode("list");
               }}
             />
+            {/* [NEW] Proses Data Test */}
+            <SidebarItem
+              label="Proses Data Test"
+              defaultIcon={processDataIcon}
+              blueIcon={processDataBlue}
+              isSidebarOpen={isSidebarOpen}
+              isSelected={selectedFeature === "proses_data"}
+              onClick={() => setSelectedFeature("proses_data")}
+            />
+            {/* [NEW] Buat Akun Pasien */}
+            <SidebarItem
+              label="Buat Akun Pasien"
+              defaultIcon={addPatientIcon}
+              blueIcon={addPatientBlue}
+              isSidebarOpen={isSidebarOpen}
+              isSelected={selectedFeature === "buat_akun"}
+              onClick={() => setSelectedFeature("buat_akun")}
+            />
             <div className="h-px bg-gray-6 my-2 mx-2"></div>
             <SidebarItem
               label="Export Data"
@@ -557,6 +586,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};;;;
+};
 
 export default AdminDashboard;

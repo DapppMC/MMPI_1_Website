@@ -47,7 +47,6 @@ const submitTest = async (req, res) => {
   }
 };
 
-
 // --- 2. TRIGGER THE MICROSERVICE (Called by Admin/System later) ---
 const processTest = async (req, res) => {
   // We need gender here because the Python script requires it for scoring

@@ -26,4 +26,7 @@ router.get('/peserta/:id', pesertaController.getPesertaById);
 router.post('/test-status/start', pesertaController.startTestStatus);
 router.post('/test-status/finish', pesertaController.finishTestStatus);
 
+// [NEW] Routes for filtering peserta that is illegible for grading
+router.get('/peserta-proses', pesertaController.getPesertaForProses);
+
 module.exports = router;
