@@ -9,6 +9,7 @@ interface Props {
 }
 
 const TOTAL_QUESTIONS = 566;
+const QUESTIONS_PER_PAGE = 5; // [NEW] Number of questions to display at once
 
 const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   const savedData = localStorage.getItem("mmpi_full_data");
@@ -22,7 +23,8 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     Array(TOTAL_QUESTIONS).fill(null),
   );
 
-  const [currentDisplayIdx, setCurrentDisplayIdx] = useState(0);
+  // [UPDATED] Tracks the start of the 5-question chunk (e.g., 0, 5, 10)
+  const [currentStartIndex, setCurrentStartIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const totalAnswered = answers.filter((a) => a !== null).length;
@@ -56,18 +58,12 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     initializeData();
   }, [pasienId]);
 
-  const realQuestionIdx = currentDisplayIdx;
-  const questionText = isLoadingQuestions
-    ? "Memuat pertanyaan dari database..."
-    : questions[realQuestionIdx] ||
-      `Pertanyaan tidak ditemukan untuk indeks ${realQuestionIdx}`;
-  const currentAnswer = answers[realQuestionIdx];
-
   // --- MOUSE CLICK HANDLER (WITH AUTO-SAVE) ---
-  const handleAnswer = (val: boolean) => {
+  // [UPDATED] Now accepts the specific index of the question clicked
+  const handleAnswer = (realIdx: number, val: boolean) => {
     setAnswers((prev) => {
       const newArr = [...prev];
-      newArr[realQuestionIdx] = val;
+      newArr[realIdx] = val;
       return newArr;
     });
 
@@ -76,14 +72,17 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pasien_id: pasienId,
-        soal_id: realQuestionIdx + 1,
+        soal_id: realIdx + 1,
         jawaban: val ? "T" : "F",
       }),
     }).catch((err) => console.error("Gagal menyimpan progress:", err));
   };
 
+  // [UPDATED] Calculates the correct chunk if the user clicks a specific number on the right grid
   const changeQuestion = (newDisplayIdx: number) => {
-    setCurrentDisplayIdx(newDisplayIdx);
+    const chunkStart =
+      Math.floor(newDisplayIdx / QUESTIONS_PER_PAGE) * QUESTIONS_PER_PAGE;
+    setCurrentStartIndex(chunkStart);
   };
 
   const handleSelesaiClick = () => {
@@ -130,9 +129,13 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     }
   };
 
+  // [UPDATED] Highlights the block of 5 currently active questions
   const getGridItemClass = (displayIdx: number) => {
     const ans = answers[displayIdx];
-    const isCurrent = displayIdx === currentDisplayIdx;
+    const isCurrent =
+      displayIdx >= currentStartIndex &&
+      displayIdx < currentStartIndex + QUESTIONS_PER_PAGE;
+
     const base =
       "w-10 h-10 flex items-center justify-center rounded-lg text-sm font-semibold border transition-all cursor-pointer select-none m-0.5";
 
@@ -141,6 +144,14 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     if (ans !== null) return `${base} bg-blue-2 border-blue-3 text-white`;
     return `${base} bg-gray-7 border-gray-8 text-black hover:bg-gray-200`;
   };
+
+  // Determine the list of indices to display on the current "page"
+  const activeIndices = Array.from(
+    {
+      length: Math.min(QUESTIONS_PER_PAGE, TOTAL_QUESTIONS - currentStartIndex),
+    },
+    (_, i) => currentStartIndex + i,
+  );
 
   return (
     <div
@@ -158,72 +169,112 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       </div>
 
       <div className="flex-1 flex gap-8 overflow-hidden">
-        <div className="w-2/3 flex flex-col gap-6">
-          <div className="bg-white rounded-xl p-1">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-black pl-1">
-                Pertanyaan {currentDisplayIdx + 1}
-              </h3>
-            </div>
-
-            <div className="w-full p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
-              <p
-                className={`text-lg font-medium ${isLoadingQuestions ? "text-gray-400 animate-pulse" : "text-gray-800"}`}
-              >
-                {questionText}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label
-                className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${currentAnswer === true ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2" : "border-gray-300 hover:bg-gray-50"} ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name={`q-${realQuestionIdx}`}
-                  checked={currentAnswer === true}
-                  onChange={() => handleAnswer(true)}
-                  disabled={isLoadingQuestions}
-                  className="w-5 h-5 accent-blue-600"
-                />
-                <span className="text-gray-800 font-medium">Setuju</span>
-              </label>
-
-              <label
-                className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${currentAnswer === false ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2" : "border-gray-300 hover:bg-gray-50"} ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name={`q-${realQuestionIdx}`}
-                  checked={currentAnswer === false}
-                  onChange={() => handleAnswer(false)}
-                  disabled={isLoadingQuestions}
-                  className="w-5 h-5 accent-blue-600"
-                />
-                <span className="text-gray-800 font-medium">Tidak Setuju</span>
-              </label>
-            </div>
+        {/* Left Column (Fixed Height, internal scroll) */}
+        <div className="w-3/4 flex flex-col h-full overflow-hidden">
+          <div className="flex justify-between items-center mb-4 shrink-0">
+            <h3 className="text-xl font-bold text-black pl-1">
+              Pertanyaan {currentStartIndex + 1} -{" "}
+              {Math.min(
+                currentStartIndex + QUESTIONS_PER_PAGE,
+                TOTAL_QUESTIONS,
+              )}
+            </h3>
           </div>
 
-          <div className="mt-auto flex justify-between items-center w-full">
+          {/* [NEW] The Scrollable 5-Question Area */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 flex flex-col gap-6 pb-4">
+            {activeIndices.map((realIdx) => (
+              <div
+                key={realIdx}
+                className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col"
+              >
+                <h4 className="text-lg font-bold text-gray-700 mb-3">
+                  Pertanyaan {realIdx + 1}
+                </h4>
+
+                <div className="w-full p-5 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                  <p
+                    className={`text-lg font-medium ${
+                      isLoadingQuestions
+                        ? "text-gray-400 animate-pulse"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    {isLoadingQuestions
+                      ? "Memuat pertanyaan dari database..."
+                      : questions[realIdx] ||
+                        `Pertanyaan tidak ditemukan untuk indeks ${realIdx}`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label
+                    className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                      answers[realIdx] === true
+                        ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2"
+                        : "border-gray-300 hover:bg-gray-50"
+                    } ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name={`q-${realIdx}`}
+                      checked={answers[realIdx] === true}
+                      onChange={() => handleAnswer(realIdx, true)}
+                      disabled={isLoadingQuestions}
+                      className="w-5 h-5 accent-blue-600"
+                    />
+                    <span className="text-gray-800 font-medium">Setuju</span>
+                  </label>
+
+                  <label
+                    className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                      answers[realIdx] === false
+                        ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2"
+                        : "border-gray-300 hover:bg-gray-50"
+                    } ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name={`q-${realIdx}`}
+                      checked={answers[realIdx] === false}
+                      onChange={() => handleAnswer(realIdx, false)}
+                      disabled={isLoadingQuestions}
+                      className="w-5 h-5 accent-blue-600"
+                    />
+                    <span className="text-gray-800 font-medium">
+                      Tidak Setuju
+                    </span>
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Fixed Bottom Navigation inside Left Column */}
+          <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center w-full shrink-0 bg-white z-10">
             <div className="flex gap-4">
               <button
                 onClick={() =>
-                  changeQuestion(Math.max(0, currentDisplayIdx - 1))
+                  setCurrentStartIndex(
+                    Math.max(0, currentStartIndex - QUESTIONS_PER_PAGE),
+                  )
                 }
-                disabled={currentDisplayIdx === 0 || isLoadingQuestions}
+                disabled={currentStartIndex === 0 || isLoadingQuestions}
                 className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
               >
                 Kembali
               </button>
               <button
                 onClick={() =>
-                  changeQuestion(
-                    Math.min(TOTAL_QUESTIONS - 1, currentDisplayIdx + 1),
+                  setCurrentStartIndex(
+                    Math.min(
+                      TOTAL_QUESTIONS - 1,
+                      currentStartIndex + QUESTIONS_PER_PAGE,
+                    ),
                   )
                 }
                 disabled={
-                  currentDisplayIdx === TOTAL_QUESTIONS - 1 ||
+                  currentStartIndex + QUESTIONS_PER_PAGE >= TOTAL_QUESTIONS ||
                   isLoadingQuestions
                 }
                 className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
@@ -235,14 +286,19 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
             <button
               onClick={handleSelesaiClick}
               disabled={isLoadingQuestions}
-              className={`px-8 py-2 rounded-lg font-bold text-white transition-all shadow-md ${isAllAnswered ? "bg-blue-600 hover:bg-blue-700 opacity-100" : "bg-blue-400 opacity-60 cursor-pointer"}`}
+              className={`px-8 py-2 rounded-lg font-bold text-white transition-all shadow-md ${
+                isAllAnswered
+                  ? "bg-blue-600 hover:bg-blue-700 opacity-100"
+                  : "bg-blue-400 opacity-60 cursor-pointer"
+              }`}
             >
               Selesai
             </button>
           </div>
         </div>
 
-        <div className="w-1/3 flex flex-col bg-gray-50 border-l border-gray-200 pl-8">
+        {/* Right Column (Grid) */}
+        <div className="w-1/4 flex flex-col bg-gray-50 border-l border-gray-200 pl-8">
           <div className="mb-4">
             <h3 className="font-bold text-lg mb-1">Navigasi Soal</h3>
             <p className="text-xs text-gray-500">
@@ -250,7 +306,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
             </p>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pl-1 pt-1">
-            <div className="grid grid-cols-5 gap-2 pb-4">
+            <div className="grid grid-cols-5 gap-2">
               {Array.from({ length: TOTAL_QUESTIONS }).map(
                 (_, displayIndex) => (
                   <div
@@ -258,7 +314,9 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                     onClick={() =>
                       !isLoadingQuestions && changeQuestion(displayIndex)
                     }
-                    className={`${getGridItemClass(displayIndex)} ${isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`${getGridItemClass(displayIndex)} ${
+                      isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   >
                     {displayIndex + 1}
                   </div>
@@ -266,7 +324,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
               )}
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-gray-200 shrink-0">
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <h4 className="font-bold mb-2">Ringkasan</h4>
               <div className="flex justify-between text-sm mb-1">
@@ -290,6 +348,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         </div>
       </div>
 
+      {/* --- EXISTING SUBMIT MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
