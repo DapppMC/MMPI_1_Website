@@ -8,6 +8,7 @@ import menuOpenIcon from "../assets/icons/light_mode/menu_open.svg";
 import arrowDownIcon from "../assets/icons/light_mode/keyboard_arrow_down.svg";
 import keyboardIcon from "../assets/icons/light_mode/keyboard.svg";
 import logoutIcon from "../assets/icons/light_mode/move_item.svg";
+import errorIcon from "../assets/icons/error.svg";
 
 import arrowDownBlue from "../assets/icons/blue/keyboard_arrow_down.svg";
 import keyboardBlue from "../assets/icons/blue/keyboard.svg";
@@ -170,6 +171,16 @@ const PatientDashboard: React.FC = () => {
     }
   };
 
+  const handleConfirmExit = () => {
+    setIsExitModalOpen(false);
+    localStorage.removeItem("active_peserta");
+    localStorage.removeItem("mmpi_full_data");
+    localStorage.removeItem("mmpi_phase1_data");
+    localStorage.removeItem("mmpi_shuffle_map");
+    localStorage.removeItem("mmpi_edit_mode");
+    navigate("/", { replace: true });
+  };
+
   const renderContent = () => {
     if (selectedFeature === "pengisian") {
       if (pengisianPhase === 1) {
@@ -257,63 +268,35 @@ const PatientDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* --- [NEW] EXIT AUTHORIZATION MODAL --- */}
+      {/* --- [UPDATED] SIMPLE EXIT CONFIRMATION MODAL --- */}
       {isExitModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[450px] flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 relative z-10">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">
-              Otorisasi Keluar
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
+          <div className="bg-white rounded-xl shadow-2xl p-8 w-[400px] flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 relative z-10">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
+              <img src={errorIcon} alt="Alert" className="w-10 h-10" />
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Apakah anda yakin?
             </h3>
-            <p className="text-red-600 font-medium text-sm bg-red-50 py-2 px-4 rounded-lg w-full mb-6 border border-red-200">
-              Untuk mendapatkan kode ini, mohon menghubungi staf kesehatan.
+            <p className="text-gray-500 mb-8">
+              Apakah anda yakin ingin meninggalkan tes? Semua progres pada sesi
+              ini akan hilang.
             </p>
 
-            <input
-              type="text"
-              maxLength={6}
-              placeholder="Masukkan 6 Digit Kode"
-              value={exitCode}
-              onChange={(e) => {
-                const numericValue = e.target.value.replace(/[^0-9]/g, "");
-                setExitCode(numericValue);
-                setExitError("");
-              }}
-              className={`w-full text-center text-2xl tracking-[0.5em] font-mono py-4 border-2 rounded-xl focus:outline-none focus:ring-4 transition-all ${
-                exitError
-                  ? "border-red-500 focus:ring-red-200"
-                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-100"
-              }`}
-            />
-
-            {exitError && (
-              <p className="text-red-500 text-sm font-semibold mt-3 animate-pulse">
-                {exitError}
-              </p>
-            )}
-
-            <div className="flex gap-4 w-full mt-8">
+            <div className="flex gap-3 w-full">
               <button
-                onClick={() => {
-                  setIsExitModalOpen(false);
-                  setExitCode("");
-                  setExitError("");
-                }}
-                disabled={isVerifyingExit}
-                className="flex-1 py-3 rounded-xl bg-gray-200 text-gray-700 font-bold hover:bg-gray-300 transition-colors"
+                onClick={() => setIsExitModalOpen(false)}
+                className="flex-1 py-2.5 rounded-lg bg-gray-500 text-white font-semibold hover:bg-gray-600 transition-colors"
               >
                 Batal
               </button>
               <button
-                onClick={handleVerifyExit}
-                disabled={isVerifyingExit || exitCode.length < 6}
-                className={`flex-1 py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center ${
-                  isVerifyingExit || exitCode.length < 6
-                    ? "bg-red-400 cursor-not-allowed"
-                    : "bg-red-600 hover:bg-red-700 shadow-md"
-                }`}
+                onClick={handleConfirmExit}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
               >
-                {isVerifyingExit ? "Memeriksa..." : "Keluar Tes"}
+                Ya, Keluar
               </button>
             </div>
           </div>
