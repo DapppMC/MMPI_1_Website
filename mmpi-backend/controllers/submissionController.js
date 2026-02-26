@@ -114,4 +114,36 @@ const processTest = async (req, res) => {
   }
 };
 
-module.exports = { submitTest, processTest };
+// [UPDATED] Add bulk patients to the processing queue
+const addToQueue = async (req, res) => {
+  const { items } = req.body; // Expects an array: [{pasien_id, gender}, ...]
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "Data antrean tidak valid" });
+  }
+
+  try {
+    await db.query('BEGIN');
+
+    for (const item of items) {
+      // [FIX] Added CAST($1 AS VARCHAR) so PostgreSQL knows exactly what type the variable is
+      await db.query(`
+        INSERT INTO antrian_proses (pasien_id, gender, status)
+        SELECT CAST($1 AS VARCHAR), CAST($2 AS VARCHAR), 'pending'
+        WHERE NOT EXISTS (
+            SELECT 1 FROM antrian_proses WHERE pasien_id = CAST($1 AS VARCHAR)
+        )
+      `, [item.pasien_id, item.gender]);
+    }
+
+    await db.query('COMMIT');
+    res.json({ success: true, message: "Berhasil ditambahkan ke antrean" });
+
+  } catch (err) {
+    await db.query('ROLLBACK');
+    console.error("Queue Insert Error:", err.message);
+    res.status(500).json({ error: "Gagal memasukkan ke antrean" });
+  }
+};
+
+module.exports = { submitTest, processTest, addToQueue };

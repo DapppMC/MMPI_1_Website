@@ -102,80 +102,60 @@ const ProsesData: React.FC = () => {
 
   const isSelected = (id: string) => selectedIds.includes(id);
 
-  // [UPDATED] Sequential processing logic
+  // [UPDATED] Send bulk IDs to the background queue
   const handleNilaiTesClick = async () => {
     if (selectedIds.length === 0) return;
 
-    // Confirm before starting a potentially long process
     if (
       !window.confirm(
-        `Mulai menilai ${selectedIds.length} data? Proses ini mungkin memakan waktu beberapa saat karena bot memproses satu per satu.`,
+        `Masukkan ${selectedIds.length} data ke antrean penilaian bot?`,
       )
     ) {
       return;
     }
 
-    setIsProcessing(true);
-    setProcessProgress({ current: 0, total: selectedIds.length });
+    setIsLoading(true); // Reuse the general loading state for the table
 
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      // 1. Map the selected IDs to match the required array format: [{pasien_id, gender}]
+      const itemsToQueue = selectedIds.map((id) => {
+        const participant = participants.find((p) => p.idPeserta === id);
+        // Default to Male if something goes horribly wrong, but it shouldn't
+        const gender =
+          participant?.jenisKelamin === "Wanita" ? "Female" : "Male";
+        return {
+          pasien_id: id,
+          gender: gender,
+        };
+      });
 
-    // Loop sequentially using a standard for-loop
-    for (let i = 0; i < selectedIds.length; i++) {
-      const currentId = selectedIds[i];
+      // 2. Fire the bulk array to the new queue endpoint
+      // NOTE: Make sure this URL matches your actual route file mapping!
+      const response = await fetch("http://localhost:3000/api/queue/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: itemsToQueue }),
+      });
 
-      // Find the participant's gender from our local state
-      const participant = participants.find((p) => p.idPeserta === currentId);
-      if (!participant) {
-        failCount++;
-        continue;
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(
+          "Berhasil! Data telah dimasukkan ke antrean. Bot akan memprosesnya di latar belakang.",
+        );
+        setSelectedIds([]); // Clear selection
+
+        // Refresh the table (though they will still say "Belum Dinilai" until the bot finishes them)
+        fetchData(startDate, endDate, false);
+      } else {
+        alert(data.error || "Gagal memasukkan data ke antrean.");
       }
-
-      // Map 'Pria'/'Wanita' to 'Male'/'Female' for your Python script
-      const mappedGender =
-        participant.jenisKelamin === "Wanita" ? "Female" : "Male";
-
-      try {
-        // Adjust the URL if your route is named differently!
-        const response = await fetch("http://localhost:3000/api/process-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pasien_id: currentId,
-            gender: mappedGender,
-          }),
-        });
-
-        if (response.ok) {
-          successCount++;
-        } else {
-          console.error(
-            `Gagal menilai ID ${currentId} - Server merespon dengan error`,
-          );
-          failCount++;
-        }
-      } catch (error) {
-        console.error(`Gagal menilai ID ${currentId}:`, error);
-        failCount++;
-      }
-
-      // Update progress after each iteration
-      setProcessProgress({ current: i + 1, total: selectedIds.length });
+    } catch (error) {
+      console.error("Queue submission error:", error);
+      alert("Terjadi kesalahan koneksi ke server.");
+    } finally {
+      setIsLoading(false);
     }
-
-    // Finish up
-    setIsProcessing(false);
-    setProcessProgress({ current: 0, total: 0 });
-    setSelectedIds([]); // Clear selection
-
-    // Refresh the table to show updated "Sudah Dinilai" statuses
-    fetchData(startDate, endDate, false);
-
-    // Summary Alert
-    alert(
-      `Proses Penilaian Selesai!\nBerhasil: ${successCount}\nGagal: ${failCount}`,
-    );
   };
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -482,6 +462,7 @@ const ProsesData: React.FC = () => {
       </div>
     </div>
   );
-};;;
+};;;;
 
 export default ProsesData;
+
