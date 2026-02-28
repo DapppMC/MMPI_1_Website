@@ -161,7 +161,7 @@ const BuatAkunPasien: React.FC = () => {
               Berhasil Dibuat!
             </h3>
             <p className="text-sm text-gray-600 mb-6">
-              Berikut adalah ID dan Kode Keluar yang telah berhasil didaftarkan
+              Berikut adalah ID yang telah berhasil didaftarkan
               ke database. Silakan berikan kredensial ini kepada peserta.
             </p>
 
@@ -171,7 +171,7 @@ const BuatAkunPasien: React.FC = () => {
                   <tr className="bg-gray-100 text-gray-700 text-sm font-bold h-12">
                     <th className="pl-6 pr-4 py-3 border-b">No.</th>
                     <th className="px-4 py-3 border-b">ID Peserta</th>
-                    <th className="px-4 py-3 border-b">Kode Keluar</th>
+                    {/* <th className="px-4 py-3 border-b">Kode Keluar</th> */}
                     <th className="px-4 py-3 border-b">Tanggal Tes</th>
                   </tr>
                 </thead>
@@ -187,9 +187,9 @@ const BuatAkunPasien: React.FC = () => {
                       <td className="px-4 py-4 font-mono font-bold text-blue-700 text-base">
                         {acc.pasienId}
                       </td>
-                      <td className="px-4 py-4 font-mono font-bold tracking-widest text-red-600 text-base">
+                      {/* <td className="px-4 py-4 font-mono font-bold tracking-widest text-red-600 text-base">
                         {acc.kodeKeluar}
-                      </td>
+                      </td> */}
                       <td className="px-4 py-4">
                         {new Date(acc.testDate).toLocaleDateString("id-ID", {
                           day: "numeric",
