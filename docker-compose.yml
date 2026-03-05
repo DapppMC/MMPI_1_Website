@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mmpi_db
+    ports:
+      - "5433:5432"
+    networks:
+      - mmpi-network
+
+  backend:
+    build: ./mmpi-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db  # This matches the service name above
+      - DB_USER=myuser
+      - DB_PASSWORD=mypassword
+      - DB_NAME=mmpi_db
+    depends_on:
+      - db
+    networks:
+      - mmpi-network
+
+  frontend:
+    build: ./client
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - mmpi-network
+
+networks:
+  mmpi-network:
+    driver: bridge
