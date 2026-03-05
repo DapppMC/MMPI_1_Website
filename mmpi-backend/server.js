@@ -14,6 +14,7 @@ const pesertaRoutes = require('./routes/pesertaRoutes');
 const soalRoutes = require('./routes/soalRoutes');
 const submissionRoutes = require('./routes/submissionRoutes');
 const dokterRoutes = require('./routes/dokterRoutes');
+const superAdminRoutes = require('./routes/superAdminRoutes');
 
 app.use(cors());
 app.use(express.json());
@@ -26,6 +27,7 @@ app.use('/api', pesertaRoutes);
 app.use('/api', soalRoutes);
 app.use('/api', submissionRoutes);
 app.use('/api', dokterRoutes);
+app.use('/api', superAdminRoutes);
 
 // [NEW] Start the background bot worker
 startWorker();
