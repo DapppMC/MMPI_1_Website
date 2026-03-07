@@ -8,6 +8,7 @@ const Profile: React.FC = () => {
     username: "",
     password: "",
     kode_seri: "",
+    acak_soal: false, // [NEW] Added acak_soal state
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -20,7 +21,6 @@ const Profile: React.FC = () => {
   const [authError, setAuthError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // [NEW] Status Message State
   const [statusMessage, setStatusMessage] = useState({
     text: "",
     isError: false,
@@ -36,6 +36,7 @@ const Profile: React.FC = () => {
         username: activeUser.username || "",
         password: "", // Leave blank for security until unlocked
         kode_seri: activeUser.kodeSeri || "",
+        acak_soal: activeUser.acakSoal || false, // [NEW] Load acakSoal from active user
       });
     }
   }, []);
@@ -48,6 +49,15 @@ const Profile: React.FC = () => {
     }));
   };
 
+  // [NEW] Toggle Handler for Acak Soal
+  const handleToggleAcakSoal = () => {
+    if (!isUnlocked) return; // Prevent changing if locked
+    setFormData((prev) => ({
+      ...prev,
+      acak_soal: !prev.acak_soal,
+    }));
+  };
+
   const handleVerifyPassword = async () => {
     const activeUserStr = localStorage.getItem("active_dokter");
     if (!activeUserStr) return;
@@ -57,7 +67,6 @@ const Profile: React.FC = () => {
     setAuthError("");
 
     try {
-      // [UPDATED] Uses the new /api/dokter/verify endpoint
       const response = await fetch("http://localhost:3000/api/dokter/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,7 +83,7 @@ const Profile: React.FC = () => {
         setIsAuthModalOpen(false);
         setFormData((prev) => ({ ...prev, password: authPassword }));
         setAuthPassword("");
-        setStatusMessage({ text: "", isError: false }); // Clear any old messages
+        setStatusMessage({ text: "", isError: false });
       } else {
         setAuthError("Password salah. Silakan coba lagi.");
       }
@@ -99,7 +108,6 @@ const Profile: React.FC = () => {
     const activeUser = JSON.parse(activeUserStr);
 
     try {
-      // [UPDATED] Uses the new /api/dokter/update endpoint
       const response = await fetch("http://localhost:3000/api/dokter/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -108,6 +116,7 @@ const Profile: React.FC = () => {
           nama: formData.nama,
           username: formData.username,
           password: formData.password,
+          acak_soal: formData.acak_soal, // [NEW] Send acak_soal to the backend
         }),
       });
 
@@ -116,7 +125,6 @@ const Profile: React.FC = () => {
       if (response.ok && data.success) {
         localStorage.setItem("active_dokter", JSON.stringify(data.user));
 
-        // [UPDATED] Inline success message instead of alert
         setStatusMessage({
           text: "Profil berhasil diperbarui!",
           isError: false,
@@ -125,7 +133,6 @@ const Profile: React.FC = () => {
         setIsUnlocked(false);
         setFormData((prev) => ({ ...prev, password: "" }));
       } else {
-        // [UPDATED] Inline error message instead of alert
         setStatusMessage({
           text: data.message || "Gagal memperbarui profil.",
           isError: true,
@@ -133,7 +140,6 @@ const Profile: React.FC = () => {
       }
     } catch (error) {
       console.error("Update error:", error);
-      // [UPDATED] Inline error message instead of alert
       setStatusMessage({
         text: "Terjadi kesalahan koneksi atau server.",
         isError: true,
@@ -141,7 +147,6 @@ const Profile: React.FC = () => {
     } finally {
       setIsSaving(false);
 
-      // Optional: Auto-hide the success message after 4 seconds
       setTimeout(() => {
         setStatusMessage({ text: "", isError: false });
       }, 4000);
@@ -174,6 +179,49 @@ const Profile: React.FC = () => {
       {/* --- Scrollable Form Container --- */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 pb-4">
+          {/* Row: Acak Soal Toggle [NEW] */}
+          <div className="grid grid-cols-[250px_1fr] items-start gap-4 mt-2">
+            <label className="font-bold text-sm text-black pt-2">
+              Sistem Ujian
+            </label>
+            <div className="w-full flex flex-col gap-2">
+              <div
+                onClick={handleToggleAcakSoal}
+                className={`inline-flex items-center gap-3 select-none w-fit ${
+                  !isUnlocked
+                    ? "cursor-not-allowed opacity-60"
+                    : "cursor-pointer"
+                }`}
+              >
+                {/* The visual switch */}
+                <div
+                  className={`relative w-12 h-6 rounded-full transition-colors duration-300 ease-in-out ${
+                    formData.acak_soal ? "bg-purple-3" : "bg-gray-400"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-300 ease-in-out ${
+                      formData.acak_soal ? "translate-x-6" : "translate-x-0"
+                    }`}
+                  />
+                </div>
+                {/* Label text */}
+                <span className="font-medium text-gray-800">
+                  {formData.acak_soal
+                    ? "Acak Soal Ujian"
+                    : "Soal Berurutan (Default)"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 font-medium">
+                Jika diaktifkan, urutan soal tes MMPI untuk pasien Anda akan
+                diacak.
+              </p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <hr className="border-gray-200 my-2" />
+
           {/* Row: Nama */}
           <div className="grid grid-cols-[250px_1fr] items-start gap-4 mt-2">
             <label className="font-bold text-sm text-black pt-3">
@@ -294,13 +342,12 @@ const Profile: React.FC = () => {
       </div>
 
       {/* --- Footer / Dynamic Button / Status Message --- */}
-      {/* [UPDATED] Changed justify-end to justify-between and items-center to align the message and buttons */}
       <div className="mt-4 flex items-center justify-between shrink-0 pt-4 border-t border-gray-200 min-h-[64px]">
         {/* Left Side: Status Message */}
         <div className="flex-1">
           {statusMessage.text && (
             <span
-              className={`font-semibold text-sm animate-in fade-in duration-300 ${statusMessage.isError ? "text-red-500" : "text-green-2"}`}
+              className={`font-semibold text-sm animate-in fade-in duration-300 ${statusMessage.isError ? "text-red-500" : "text-green-600"}`}
             >
               {statusMessage.text}
             </span>
@@ -315,7 +362,7 @@ const Profile: React.FC = () => {
               onClick={() => {
                 setIsAuthModalOpen(true);
                 setAuthError("");
-                setStatusMessage({ text: "", isError: false }); // Clear message when starting edit
+                setStatusMessage({ text: "", isError: false });
               }}
               className="bg-blue-2 hover:bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition-colors shadow-lg flex items-center gap-2"
             >
@@ -346,7 +393,13 @@ const Profile: React.FC = () => {
                   const activeUserStr = localStorage.getItem("active_dokter");
                   if (activeUserStr) {
                     const activeUser = JSON.parse(activeUserStr);
-                    setFormData({ ...formData, ...activeUser, password: "" });
+                    // Ensure acakSoal is reset too
+                    setFormData({
+                      ...formData,
+                      ...activeUser,
+                      acak_soal: activeUser.acakSoal || false,
+                      password: "",
+                    });
                   }
                 }}
                 className="px-6 py-3 rounded-lg font-bold text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 transition-colors"

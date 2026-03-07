@@ -9,41 +9,101 @@ interface Props {
 }
 
 const TOTAL_QUESTIONS = 566;
-const QUESTIONS_PER_PAGE = 5; // [NEW] Number of questions to display at once
+const QUESTIONS_PER_PAGE = 5;
+
+// Helper function to shuffle an array (Fisher-Yates algorithm)
+const generateShuffleMap = (length: number) => {
+  const arr = Array.from({ length }, (_, i) => i);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
 
 const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
   const savedData = localStorage.getItem("mmpi_full_data");
   const parsedData = savedData ? JSON.parse(savedData) : {};
   const pasienId = parsedData.idPeserta || "xyz-123";
 
+  // Extract the first 3 characters (kode_seri)
+  const kodeSeri = pasienId.substring(0, 3);
+
+  console.log(kodeSeri);
+
   const [questions, setQuestions] = useState<string[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
+  // [NEW] The map linking Display Index -> Real Question Index
+  const [questionMap, setQuestionMap] = useState<number[]>([]);
+
+  // answers array ALWAYS holds the data in REAL ID order (0-565) for the backend
   const [answers, setAnswers] = useState<(boolean | null)[]>(
     Array(TOTAL_QUESTIONS).fill(null),
   );
 
-  // [UPDATED] Tracks the start of the 5-question chunk (e.g., 0, 5, 10)
   const [currentStartIndex, setCurrentStartIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const totalAnswered = answers.filter((a) => a !== null).length;
   const isAllAnswered = totalAnswered === TOTAL_QUESTIONS;
 
-  // --- INITIAL LOAD FROM DATABASE ---
+  console.log("Here");
+
+  // --- INITIALIZATION (Questions + Acak Logic + Saved Answers) ---
   useEffect(() => {
     const initializeData = async () => {
       try {
+        // 1. Fetch text questions
         const qData = await fetchMMPIQuestions();
         setQuestions(qData);
 
+        // 2. Determine Shuffle Map
+        let activeMap: number[] = [];
+        const savedMapStr = localStorage.getItem("mmpi_shuffle_map");
+
+        console.log("Here too");
+
+        if (savedMapStr) {
+          console.log("Case 1");
+          activeMap = JSON.parse(savedMapStr);
+        } else {
+          // If no map is saved, check the database for the doctor's setting
+          try {
+            console.log("Case 2");
+            const acakRes = await fetch(
+              `http://localhost:3000/api/dokter/acak-soal/${kodeSeri}`,
+            );
+            const acakData = await acakRes.json();
+
+            console.log(acakData);
+
+            if (acakRes.ok && acakData.acak_soal) {
+              activeMap = generateShuffleMap(TOTAL_QUESTIONS);
+            } else {
+              // Default to sequential
+              activeMap = Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
+            }
+          } catch (err) {
+            console.error(
+              "Failed to fetch acak status, defaulting to sequential",
+              err,
+            );
+            activeMap = Array.from({ length: TOTAL_QUESTIONS }, (_, i) => i);
+          }
+          // Save map so it persists across refreshes during the test
+          localStorage.setItem("mmpi_shuffle_map", JSON.stringify(activeMap));
+        }
+        setQuestionMap(activeMap);
+
+        // 3. Load Saved Answers from Database
         const progressRes = await fetch(
           `http://localhost:3000/api/jawaban-temp/${pasienId}`,
         );
         if (progressRes.ok) {
           const progressData = await progressRes.json();
           const loadedAnswers = Array(TOTAL_QUESTIONS).fill(null);
-
+          // Backend soal_id is 1-based, array is 0-based
           progressData.forEach((item: any) => {
             loadedAnswers[item.soal_id - 1] = item.jawaban === "T";
           });
@@ -56,14 +116,13 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       }
     };
     initializeData();
-  }, [pasienId]);
+  }, [pasienId, kodeSeri]);
 
-  // --- MOUSE CLICK HANDLER (WITH AUTO-SAVE) ---
-  // [UPDATED] Now accepts the specific index of the question clicked
+  // --- MOUSE CLICK HANDLER ---
   const handleAnswer = (realIdx: number, val: boolean) => {
     setAnswers((prev) => {
       const newArr = [...prev];
-      newArr[realIdx] = val;
+      newArr[realIdx] = val; // Store at the REAL index for the database
       return newArr;
     });
 
@@ -72,13 +131,12 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pasien_id: pasienId,
-        soal_id: realIdx + 1,
+        soal_id: realIdx + 1, // Database expects 1-566
         jawaban: val ? "T" : "F",
       }),
     }).catch((err) => console.error("Gagal menyimpan progress:", err));
   };
 
-  // [UPDATED] Calculates the correct chunk if the user clicks a specific number on the right grid
   const changeQuestion = (newDisplayIdx: number) => {
     const chunkStart =
       Math.floor(newDisplayIdx / QUESTIONS_PER_PAGE) * QUESTIONS_PER_PAGE;
@@ -89,7 +147,6 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     setIsModalOpen(true);
   };
 
-  // --- FINAL SUBMIT ---
   const handleConfirmSubmit = async () => {
     try {
       await fetch("http://localhost:3000/api/jawaban-temp/bulk", {
@@ -97,7 +154,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pasien_id: pasienId,
-          answers: answers,
+          answers: answers, // Sends in original 1-566 order, perfectly safe!
         }),
       });
 
@@ -129,9 +186,14 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     }
   };
 
-  // [UPDATED] Highlights the block of 5 currently active questions
+  // HIGHLIGHT LOGIC (Based on Display Index)
   const getGridItemClass = (displayIdx: number) => {
-    const ans = answers[displayIdx];
+    if (!questionMap.length) return ""; // Guard during loading
+
+    // Look up the REAL index to check if it's answered
+    const realIdx = questionMap[displayIdx];
+    const ans = answers[realIdx];
+
     const isCurrent =
       displayIdx >= currentStartIndex &&
       displayIdx < currentStartIndex + QUESTIONS_PER_PAGE;
@@ -145,8 +207,8 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
     return `${base} bg-gray-7 border-gray-8 text-black hover:bg-gray-200`;
   };
 
-  // Determine the list of indices to display on the current "page"
-  const activeIndices = Array.from(
+  // Calculate the DISPLAY indices for the current page
+  const activeDisplayIndices = Array.from(
     {
       length: Math.min(QUESTIONS_PER_PAGE, TOTAL_QUESTIONS - currentStartIndex),
     },
@@ -169,11 +231,10 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
       </div>
 
       <div className="flex-1 flex gap-8 overflow-hidden">
-        {/* Left Column (Fixed Height, internal scroll) */}
         <div className="w-3/4 flex flex-col h-full overflow-hidden">
           <div className="flex justify-between items-center mb-4 shrink-0">
             <h3 className="text-xl font-bold text-black pl-1">
-              Pertanyaan {currentStartIndex + 1} -{" "}
+              Soal {currentStartIndex + 1} -{" "}
               {Math.min(
                 currentStartIndex + QUESTIONS_PER_PAGE,
                 TOTAL_QUESTIONS,
@@ -181,76 +242,68 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
             </h3>
           </div>
 
-          {/* [NEW] The Scrollable 5-Question Area */}
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 flex flex-col gap-6 pb-4">
-            {activeIndices.map((realIdx) => (
-              <div
-                key={realIdx}
-                className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col"
-              >
-                <h4 className="text-lg font-bold text-gray-700 mb-3">
-                  Pertanyaan {realIdx + 1}
-                </h4>
+            {/* Map over DISPLAY indices, but render REAL questions */}
+            {activeDisplayIndices.map((displayIdx) => {
+              const realIdx = questionMap[displayIdx];
+              // Guard clause while loading map
+              if (realIdx === undefined) return null;
 
-                <div className="w-full p-5 bg-gray-50 border border-gray-200 rounded-lg mb-6">
-                  <p
-                    className={`text-lg font-medium ${
-                      isLoadingQuestions
-                        ? "text-gray-400 animate-pulse"
-                        : "text-gray-800"
-                    }`}
-                  >
-                    {isLoadingQuestions
-                      ? "Memuat pertanyaan dari database..."
-                      : questions[realIdx] ||
-                        `Pertanyaan tidak ditemukan untuk indeks ${realIdx}`}
-                  </p>
+              return (
+                <div
+                  key={displayIdx}
+                  className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col"
+                >
+                  <h4 className="text-lg font-bold text-gray-700 mb-3">
+                    Soal {displayIdx + 1} {/* Show simple 1-566 to user */}
+                  </h4>
+
+                  <div className="w-full p-5 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                    <p
+                      className={`text-lg font-medium ${isLoadingQuestions ? "text-gray-400 animate-pulse" : "text-gray-800"}`}
+                    >
+                      {isLoadingQuestions
+                        ? "Memuat pertanyaan..."
+                        : questions[realIdx] || `Pertanyaan tidak ditemukan.`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <label
+                      className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${answers[realIdx] === true ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2" : "border-gray-300 hover:bg-gray-50"} ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`q-${displayIdx}`}
+                        checked={answers[realIdx] === true}
+                        onChange={() => handleAnswer(realIdx, true)}
+                        disabled={isLoadingQuestions}
+                        className="w-5 h-5 accent-blue-600"
+                      />
+                      <span className="text-gray-800 font-medium">Setuju</span>
+                    </label>
+
+                    <label
+                      className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${answers[realIdx] === false ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2" : "border-gray-300 hover:bg-gray-50"} ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`q-${displayIdx}`}
+                        checked={answers[realIdx] === false}
+                        onChange={() => handleAnswer(realIdx, false)}
+                        disabled={isLoadingQuestions}
+                        className="w-5 h-5 accent-blue-600"
+                      />
+                      <span className="text-gray-800 font-medium">
+                        Tidak Setuju
+                      </span>
+                    </label>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-4">
-                  <label
-                    className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
-                      answers[realIdx] === true
-                        ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2"
-                        : "border-gray-300 hover:bg-gray-50"
-                    } ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name={`q-${realIdx}`}
-                      checked={answers[realIdx] === true}
-                      onChange={() => handleAnswer(realIdx, true)}
-                      disabled={isLoadingQuestions}
-                      className="w-5 h-5 accent-blue-600"
-                    />
-                    <span className="text-gray-800 font-medium">Setuju</span>
-                  </label>
-
-                  <label
-                    className={`flex-1 flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
-                      answers[realIdx] === false
-                        ? "border-blue-2 bg-blue-50 ring-1 ring-blue-2"
-                        : "border-gray-300 hover:bg-gray-50"
-                    } ${isLoadingQuestions ? "opacity-50 pointer-events-none" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name={`q-${realIdx}`}
-                      checked={answers[realIdx] === false}
-                      onChange={() => handleAnswer(realIdx, false)}
-                      disabled={isLoadingQuestions}
-                      className="w-5 h-5 accent-blue-600"
-                    />
-                    <span className="text-gray-800 font-medium">
-                      Tidak Setuju
-                    </span>
-                  </label>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Fixed Bottom Navigation inside Left Column */}
           <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center w-full shrink-0 bg-white z-10">
             <div className="flex gap-4">
               <button
@@ -286,18 +339,13 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
             <button
               onClick={handleSelesaiClick}
               disabled={isLoadingQuestions}
-              className={`px-8 py-2 rounded-lg font-bold text-white transition-all shadow-md ${
-                isAllAnswered
-                  ? "bg-blue-600 hover:bg-blue-700 opacity-100"
-                  : "bg-blue-400 opacity-60 cursor-pointer"
-              }`}
+              className={`px-8 py-2 rounded-lg font-bold text-white transition-all shadow-md ${isAllAnswered ? "bg-blue-600 hover:bg-blue-700 opacity-100" : "bg-blue-400 opacity-60 cursor-pointer"}`}
             >
               Selesai
             </button>
           </div>
         </div>
 
-        {/* Right Column (Grid) */}
         <div className="w-1/4 flex flex-col bg-gray-50 border-l border-gray-200 pl-8">
           <div className="mb-4">
             <h3 className="font-bold text-lg mb-1">Navigasi Soal</h3>
@@ -314,9 +362,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
                     onClick={() =>
                       !isLoadingQuestions && changeQuestion(displayIndex)
                     }
-                    className={`${getGridItemClass(displayIndex)} ${
-                      isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`${getGridItemClass(displayIndex)} ${isLoadingQuestions ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {displayIndex + 1}
                   </div>
@@ -348,7 +394,7 @@ const PengisianDataTest: React.FC<Props> = ({ onFinish }) => {
         </div>
       </div>
 
-      {/* --- EXISTING SUBMIT MODAL --- */}
+      {/* --- EXISTING SUBMIT MODAL (UNCHANGED) --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />

@@ -77,31 +77,33 @@ const verifyDokter = async (req, res) => {
 
 // 3. Update function for Profile
 const updateDokter = async (req, res) => {
-  const { dokterId, nama, username, password } = req.body;
+  // [UPDATED] Added acak_soal to the destructured body
+  const { dokterId, nama, username, password, acak_soal } = req.body;
 
   if (!dokterId || !nama || !username || !password) {
     return res.status(400).json({ success: false, message: "Semua data wajib diisi!" });
   }
 
   try {
-    // [NEW] Hash the new password before saving it to the database
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // [UPDATED] Added acak_soal to the UPDATE statement and RETURNING clause
     const query = `
       UPDATE public.dokter 
-      SET nama = $1, username = $2, password = $3
-      WHERE dokter_id = $4
+      SET nama = $1, username = $2, password = $3, acak_soal = $4
+      WHERE dokter_id = $5
       RETURNING 
         dokter_id AS "dokterId", 
         nama, 
         username, 
         pasien_code_id AS "pasienCodeId", 
-        kode_seri AS "kodeSeri"
+        kode_seri AS "kodeSeri",
+        acak_soal AS "acakSoal"
     `;
     
-    // [UPDATED] Pass the hashedPassword instead of the plain password
-    const result = await db.query(query, [nama, username, hashedPassword, dokterId]);
+    // [UPDATED] Added acak_soal to the parameter array
+    const result = await db.query(query, [nama, username, hashedPassword, acak_soal, dokterId]);
 
     if (result.rows.length > 0) {
       res.json({ 
@@ -121,4 +123,41 @@ const updateDokter = async (req, res) => {
   }
 };
 
-module.exports = { loginDokter, verifyDokter, updateDokter };
+// [UPDATED] Get acak_soal status by kode_seri (Bulletproof version)
+const checkAcakSoal = async (req, res) => {
+  const { kode_seri } = req.params;
+
+  if (!kode_seri) {
+    return res.status(400).json({ error: "kode_seri is required" });
+  }
+
+  try {
+    // 1. Use ILIKE for case-insensitivity
+    // 2. Use ORDER BY DESC LIMIT 1 to bypass duplicate dummy accounts
+    const query = `
+      SELECT acak_soal 
+      FROM public.dokter 
+      WHERE kode_seri ILIKE $1 
+      ORDER BY dokter_id DESC 
+      LIMIT 1
+    `;
+    
+    const result = await db.query(query, [kode_seri]);
+
+    if (result.rows.length > 0) {
+      // Force it to a strict boolean just in case the DB returns a string or null
+      const rawValue = result.rows[0].acak_soal;
+      const isAcak = rawValue === true || rawValue === 'true' || rawValue === 't' || rawValue === 1;
+      
+      console.log(`[SYSTEM] Cek Acak Soal untuk '${kode_seri}': ${isAcak}`);
+      res.json({ success: true, acak_soal: isAcak });
+    } else {
+      res.status(404).json({ error: "Dokter tidak ditemukan" });
+    }
+  } catch (err) {
+    console.error("Check Acak Soal Error:", err.message);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+module.exports = { loginDokter, verifyDokter, updateDokter, checkAcakSoal };
