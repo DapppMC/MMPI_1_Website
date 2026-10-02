@@ -1,0 +1,52 @@
+{
+ "K01": {
+  "pasien_id": "ABC-021020260001",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K02": {
+  "pasien_id": "ABC-021020260002",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K03": {
+  "pasien_id": "ABC-021020260003",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K04": {
+  "pasien_id": "ABC-021020260004",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K05": {
+  "pasien_id": "ABC-021020260005",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K06": {
+  "pasien_id": "ABC-021020260006",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K07": {
+  "pasien_id": "ABC-021020260007",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K08": {
+  "pasien_id": "ABC-021020260008",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ },
+ "K09": {
+  "pasien_id": "ABC-021020260009",
+  "tanggal": "2026-10-02",
+  "jalur_web": "ui-acak"
+ },
+ "K10": {
+  "pasien_id": "ABC-021020260010",
+  "tanggal": "2026-10-02",
+  "jalur_web": "api"
+ }
+}

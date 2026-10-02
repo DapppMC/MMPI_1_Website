@@ -1,0 +1,248 @@
+{
+ "K01": {
+  "jawaban_di_layar_beda_dari_kunci": 0,
+  "tanda_tak_terbaca(kursor)": 0,
+  "skala_beda_vs_web_final": [],
+  "skor_dos_manual": {
+   "L": {
+    "raw": 0,
+    "t": 28
+   },
+   "F": {
+    "raw": 44,
+    "t": 124
+   },
+   "K": {
+    "raw": 1,
+    "t": 19
+   },
+   "1 (Hs)": {
+    "raw": 11,
+    "t": 45,
+    "koreksi_k": 1,
+    "total": 12
+   },
+   "2 (D)": {
+    "raw": 20,
+    "t": 46
+   },
+   "3 (Hy)": {
+    "raw": 13,
+    "t": 37
+   },
+   "4 (Pd)": {
+    "raw": 24,
+    "t": 56,
+    "koreksi_k": 1,
+    "total": 25
+   },
+   "5 (Mf)": {
+    "raw": 28,
+    "t": 62
+   },
+   "6 (Pa)": {
+    "raw": 25,
+    "t": 94
+   },
+   "7 (Pt)": {
+    "raw": 39,
+    "t": 67,
+    "koreksi_k": 1,
+    "total": 40
+   },
+   "8 (Sc)": {
+    "raw": 59,
+    "t": 104,
+    "koreksi_k": 1,
+    "total": 60
+   },
+   "9 (Ma)": {
+    "raw": 35,
+    "t": 90,
+    "koreksi_k": 0,
+    "total": 35
+   },
+   "0 (Si)": {
+    "raw": 34,
+    "t": 57
+   },
+   "?": 0,
+   "A": 78,
+   "R": 6,
+   "Mas": 74,
+   "Es": 4,
+   "Lb": 31,
+   "Ca": 68,
+   "Dy": 83,
+   "Do": 29,
+   "Re": 9,
+   "Pr": 96,
+   "St": 36,
+   "Cn": 58
+  }
+ },
+ "K04": {
+  "jawaban_di_layar_beda_dari_kunci": 0,
+  "tanda_tak_terbaca(kursor)": 1,
+  "skala_beda_vs_web_final": [],
+  "skor_dos_manual": {
+   "L": {
+    "raw": 15,
+    "t": 109
+   },
+   "F": {
+    "raw": 20,
+    "t": 88
+   },
+   "K": {
+    "raw": 29,
+    "t": 83
+   },
+   "1 (Hs)": {
+    "raw": 22,
+    "t": 91,
+    "koreksi_k": 15,
+    "total": 37
+   },
+   "2 (D)": {
+    "raw": 40,
+    "t": 84
+   },
+   "3 (Hy)": {
+    "raw": 47,
+    "t": 95
+   },
+   "4 (Pd)": {
+    "raw": 26,
+    "t": 85,
+    "koreksi_k": 12,
+    "total": 38
+   },
+   "5 (Mf)": {
+    "raw": 35,
+    "t": 44
+   },
+   "6 (Pa)": {
+    "raw": 15,
+    "t": 72
+   },
+   "7 (Pt)": {
+    "raw": 9,
+    "t": 61,
+    "koreksi_k": 29,
+    "total": 38
+   },
+   "8 (Sc)": {
+    "raw": 19,
+    "t": 85,
+    "koreksi_k": 29,
+    "total": 48
+   },
+   "9 (Ma)": {
+    "raw": 11,
+    "t": 45,
+    "koreksi_k": 6,
+    "total": 17
+   },
+   "0 (Si)": {
+    "raw": 36,
+    "t": 57
+   },
+   "?": 0,
+   "A": 33,
+   "R": 102,
+   "Mas": 43,
+   "Es": 47,
+   "Lb": 83,
+   "Ca": 46,
+   "Dy": 29,
+   "Do": 71,
+   "Re": 49,
+   "Pr": 24,
+   "St": 51,
+   "Cn": 46
+  }
+ },
+ "K07": {
+  "jawaban_di_layar_beda_dari_kunci": 0,
+  "tanda_tak_terbaca(kursor)": 0,
+  "skala_beda_vs_web_final": [],
+  "skor_dos_manual": {
+   "L": {
+    "raw": 7,
+    "t": 56
+   },
+   "F": {
+    "raw": 36,
+    "t": 124
+   },
+   "K": {
+    "raw": 10,
+    "t": 39
+   },
+   "1 (Hs)": {
+    "raw": 14,
+    "t": 62,
+    "koreksi_k": 5,
+    "total": 19
+   },
+   "2 (D)": {
+    "raw": 32,
+    "t": 69
+   },
+   "3 (Hy)": {
+    "raw": 26,
+    "t": 66
+   },
+   "4 (Pd)": {
+    "raw": 24,
+    "t": 63,
+    "koreksi_k": 4,
+    "total": 28
+   },
+   "5 (Mf)": {
+    "raw": 32,
+    "t": 73
+   },
+   "6 (Pa)": {
+    "raw": 22,
+    "t": 85
+   },
+   "7 (Pt)": {
+    "raw": 28,
+    "t": 64,
+    "koreksi_k": 10,
+    "total": 38
+   },
+   "8 (Sc)": {
+    "raw": 44,
+    "t": 93,
+    "koreksi_k": 10,
+    "total": 54
+   },
+   "9 (Ma)": {
+    "raw": 23,
+    "t": 65,
+    "koreksi_k": 2,
+    "total": 25
+   },
+   "0 (Si)": {
+    "raw": 41,
+    "t": 65
+   },
+   "?": 0,
+   "A": 62,
+   "R": 45,
+   "Mas": 69,
+   "Es": 24,
+   "Lb": 50,
+   "Ca": 62,
+   "Dy": 60,
+   "Do": 53,
+   "Re": 31,
+   "Pr": 58,
+   "St": 27,
+   "Cn": 64
+  }
+ }
+}

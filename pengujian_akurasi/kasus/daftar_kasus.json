@@ -1,0 +1,72 @@
+[
+ {
+  "id": "K01",
+  "gender": "Pria",
+  "jalur_web": "api",
+  "jumlah_ya": 566,
+  "deskripsi": "Semua dijawab Ya"
+ },
+ {
+  "id": "K02",
+  "gender": "Pria",
+  "jalur_web": "api",
+  "jumlah_ya": 0,
+  "deskripsi": "Semua dijawab Tidak"
+ },
+ {
+  "id": "K03",
+  "gender": "Wanita",
+  "jalur_web": "api",
+  "jumlah_ya": 566,
+  "deskripsi": "Semua dijawab Ya"
+ },
+ {
+  "id": "K04",
+  "gender": "Wanita",
+  "jalur_web": "api",
+  "jumlah_ya": 0,
+  "deskripsi": "Semua dijawab Tidak"
+ },
+ {
+  "id": "K05",
+  "gender": "Pria",
+  "jalur_web": "api",
+  "jumlah_ya": 283,
+  "deskripsi": "Selang-seling: nomor ganjil Ya, genap Tidak"
+ },
+ {
+  "id": "K06",
+  "gender": "Pria",
+  "jalur_web": "api",
+  "jumlah_ya": 283,
+  "deskripsi": "Kebalikan K05: nomor ganjil Tidak, genap Ya (jumlah Ya sama dengan K05)"
+ },
+ {
+  "id": "K07",
+  "gender": "Pria",
+  "jalur_web": "api",
+  "jumlah_ya": 297,
+  "deskripsi": "Acak (seed 7)"
+ },
+ {
+  "id": "K08",
+  "gender": "Wanita",
+  "jalur_web": "api",
+  "jumlah_ya": 269,
+  "deskripsi": "Acak (seed 8)"
+ },
+ {
+  "id": "K09",
+  "gender": "Wanita",
+  "jalur_web": "ui-acak",
+  "jumlah_ya": 286,
+  "deskripsi": "Acak (seed 9), butir kembar dibuat sama; DIKERJAKAN LEWAT LAYAR PESERTA dengan acak soal AKTIF"
+ },
+ {
+  "id": "K10",
+  "gender": "Wanita",
+  "jalur_web": "api",
+  "jumlah_ya": 297,
+  "deskripsi": "Jawaban PERSIS sama dengan K07 tetapi Wanita (uji pengaruh norma gender)"
+ }
+]
