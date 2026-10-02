@@ -75,7 +75,7 @@ const processTest = async (req, res) => {
     console.log(`[BOT] Waking up Python DOSBox bot for patient: ${pasien_id}...`);
     
     // 2. Call Python Microservice
-    const pythonResponse = await fetch('http://127.0.0.1:8000/process-mmpi', {
+    const pythonResponse = await fetch(`${process.env.PYTHON_API_URL || 'http://127.0.0.1:8000'}/process-mmpi`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gender, answers: booleanAnswers })

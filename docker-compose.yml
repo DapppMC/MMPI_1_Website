@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     restart: always
     environment:
       POSTGRES_USER: myuser
@@ -8,11 +8,23 @@ services:
       POSTGRES_DB: mmpi_db
     ports:
       - "5433:5432"
+    volumes:
+      # Auto-load data the first time the database is created:
+      - ./mmpi_backup_docker.sql:/docker-entrypoint-initdb.d/01_backup.sql:ro
+      - ./init_acak_soal.sql:/docker-entrypoint-initdb.d/02_acak_soal.sql:ro
+    # Tandai "sehat" hanya kalau Postgres benar-benar siap menerima koneksi
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mmpi_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
     networks:
       - mmpi-network
 
   backend:
     build: ./mmpi-backend
+    restart: always
     ports:
       - "3000:3000"
     environment:
@@ -20,13 +32,21 @@ services:
       - DB_USER=myuser
       - DB_PASSWORD=mypassword
       - DB_NAME=mmpi_db
+      # Alamat server Python (DOSBox-X + pembaca layar) yang jalan di Windows, dilihat dari dalam container.
+      # Jalankan server Python dengan: uvicorn server:app --host 0.0.0.0 --port 8000 (ganti port di sini bila 8000 terpakai)
+      - PYTHON_API_URL=http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Tunggu database SEHAT dulu, bukan sekadar containernya menyala
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - mmpi-network
 
   frontend:
     build: ./client
+    restart: always
     ports:
       - "80:80"
     depends_on:

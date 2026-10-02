@@ -10,7 +10,8 @@ const IDLE_TIMEOUT_MS = 5000; // Close DOSBox if queue is empty for 5 seconds
 // Helper to interact with Python API
 // Helper to interact with Python API
 const callPythonApi = async (endpoint, payload = null) => {
-  const url = `http://127.0.0.1:8000/${endpoint}`;
+  const baseUrl = process.env.PYTHON_API_URL || 'http://127.0.0.1:8000';
+  const url = `${baseUrl}/${endpoint}`;
   const options = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
