@@ -34,3 +34,29 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# --- Tambahan (perbaikan akurasi, Oktober 2026) ---
+# Teks soal MMPI berlisensi: siapkan lokal, jangan di-commit
+soal_asli.txt
+03_soal_asli.sql
+**/*_log_jawaban.csv
+pengujian_akurasi/hasil/web/K09_log_ui.csv
+# Prompt/catatan berisi kredensial lokal
+PROMPT_*.md
+# Jejak runtime server Python
+server/dosbox_runtime.conf
+server/debug_00_*.png
+server/temp_*.png
+server/arsip_layar/
+server/capture/
+server/__pycache__/
+server/stdout.txt
+server/stderr.txt
+server/uji_*.json
+pengujian_akurasi/hasil/dbf/
+pengujian_akurasi/hasil/_paket/
+pengujian_akurasi/hasil/_tmp/
+# Salinan cadangan & skrip pribadi
+*.bak
+*.bat
