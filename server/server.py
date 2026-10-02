@@ -1,9 +1,20 @@
 import time
+import traceback
 import subprocess
 import os
 import re
 import cv2
 import numpy as np
+import ctypes
+from ctypes import wintypes
+# [PERBAIKAN AKURASI] Samakan sistem koordinat jendela & screenshot pada laptop dengan skala layar (DPI) > 100%
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
 import pyautogui
 import pytesseract
 import pygetwindow as gw
@@ -34,31 +45,99 @@ DOSBOX_EXE = r"C:\DOSBox-X\dosbox-x.exe"
 DOSBOX_CONF = "dosbox.conf"
 DOSBOX_WINDOW_TITLE = "DOSBox" 
 
+def _siapkan_dosbox_conf():
+    """[PERBAIKAN AKURASI] dosbox.conf memakai penanda {MMPI_DIR}; diganti otomatis dengan lokasi folder
+    vDosMMPI/MMPI2007 di komputer ini, sehingga tidak perlu mengedit path per laptop."""
+    folder = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(folder, DOSBOX_CONF), encoding="utf-8") as f:
+        isi = f.read()
+    isi = isi.replace("{MMPI_DIR}", os.path.join(folder, "vDosMMPI", "MMPI2007"))
+    hasil = os.path.join(folder, "dosbox_runtime.conf")
+    with open(hasil, "w", encoding="utf-8") as f:
+        f.write(isi)
+    return hasil
+
 # --- PERSISTENT STATE ---
 current_dos_proc = None
 
 app = FastAPI()
 
 # Helper to manage DOSBox focus
-def ensure_dos_focus():
-    windows = gw.getWindowsWithTitle(DOSBOX_WINDOW_TITLE)
-    dos_win = None
-    for w in windows:
-        if DOSBOX_WINDOW_TITLE.lower() in w.title.lower():
-            dos_win = w
-            break
-    
-    if not dos_win:
+# [PERBAIKAN AKURASI] PENGAMAN FOKUS: Bot Logic hanya boleh mengetik kalau jendela yang aktif BENAR-BENAR DOSBox-X
+# yang dijalankan server ini (dicari dari PID prosesnya, bukan dari judul jendela).
+# Tanpa ini, ketikan bisa nyasar ke aplikasi lain (chat, email, dokumen) bila Windows menolak memindah fokus.
+_user32 = ctypes.windll.user32
+_kernel32 = ctypes.windll.kernel32
+
+class _JendelaDos:
+    def __init__(self, hwnd):
+        self._hWnd = hwnd
+
+def _hwnd_dosbox():
+    if not current_dos_proc or current_dos_proc.poll() is not None:
         return None
-        
-    if not dos_win.isActive:
-        try:
-            dos_win.activate()
-        except:
-            dos_win.restore(); dos_win.activate()
-    
-    time.sleep(0.5)
-    return dos_win
+    pid = current_dos_proc.pid
+    ketemu = []
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+    def _cb(h, l):
+        if _user32.IsWindowVisible(h) and _user32.GetWindowTextLengthW(h) > 0:
+            p = wintypes.DWORD()
+            _user32.GetWindowThreadProcessId(h, ctypes.byref(p))
+            if p.value == pid:
+                ketemu.append(h)
+        return True
+    _user32.EnumWindows(_cb, 0)
+    return ketemu[0] if ketemu else None
+
+def _bawa_ke_depan(hwnd, pakai_alt=False):
+    if _user32.IsIconic(hwnd):
+        _user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    fg = _user32.GetForegroundWindow()
+    t_fg = _user32.GetWindowThreadProcessId(fg, None)
+    t_ini = _kernel32.GetCurrentThreadId()
+    _user32.AttachThreadInput(t_ini, t_fg, True)
+    if pakai_alt:
+        _user32.keybd_event(0x12, 0, 0, 0); _user32.keybd_event(0x12, 0, 2, 0)
+    _user32.BringWindowToTop(hwnd)
+    _user32.SetForegroundWindow(hwnd)
+    _user32.AttachThreadInput(t_ini, t_fg, False)
+    time.sleep(0.4)
+    return _user32.GetForegroundWindow() == hwnd
+
+def _wajib_fokus():
+    hwnd = _hwnd_dosbox()
+    if not hwnd:
+        raise Exception("PENGAMAN: jendela DOSBox-X milik server tidak ditemukan; robot berhenti tanpa mengetik")
+    if _user32.GetForegroundWindow() == hwnd:
+        return hwnd
+    for i in range(4):
+        if _bawa_ke_depan(hwnd, pakai_alt=(i >= 2)):
+            return hwnd
+        time.sleep(0.5)
+    raise Exception("PENGAMAN: DOSBox-X tidak bisa dibawa ke depan; robot berhenti tanpa mengetik")
+
+def _cek_masih_fokus(hwnd):
+    if _user32.GetForegroundWindow() != hwnd:
+        raise Exception("PENGAMAN: fokus pindah dari DOSBox-X di tengah pengetikan; robot berhenti")
+
+def _ketik(teks, interval=0.039):
+    hwnd = _wajib_fokus()
+    for i in range(0, len(teks), 25):
+        _cek_masih_fokus(hwnd)
+        pyautogui.typewrite(teks[i:i + 25], interval=interval)
+
+def _tekan(tombol):
+    hwnd = _wajib_fokus()
+    for t in (tombol if isinstance(tombol, list) else [tombol]):
+        _cek_masih_fokus(hwnd)
+        pyautogui.press(t)
+
+def ensure_dos_focus():
+    try:
+        return _JendelaDos(_wajib_fokus())
+    except Exception as e:
+        print(e)
+        return None
 
 # --- PART 1: VISION ENGINE (Optimized with Smart Cropping) ---
 def preprocess_image(img, factor=4, interp=cv2.INTER_LINEAR, erode=False):
@@ -401,7 +480,8 @@ def api_start_dosbox():
         time.sleep(1)
         
     # 2. Start DOSBox
-    current_dos_proc = subprocess.Popen([DOSBOX_EXE, "-conf", DOSBOX_CONF])
+    current_dos_proc = subprocess.Popen([DOSBOX_EXE, "-nopromptfolder", "-defaultdir", os.path.dirname(os.path.abspath(__file__)),
+                                         "-conf", _siapkan_dosbox_conf()])
     
     try:
         time.sleep(3) 
@@ -417,18 +497,18 @@ def api_start_dosbox():
         time.sleep(15) 
         
         # 2. Input Serial
-        pyautogui.typewrite('MP-3980400', interval=0.001)
+        _ketik('MP-3980400', interval=0.001)
         time.sleep(0.5)
-        pyautogui.press('right')
-        pyautogui.press('enter')
+        _tekan('right')
+        _tekan('enter')
         
         # 3. Delay for Main Menu
         time.sleep(7)
         
         # 4. Skip Intros
-        pyautogui.press('enter')
+        _tekan('enter')
         time.sleep(0.5)
-        pyautogui.press(['enter', 'enter', 'enter', 'enter']) 
+        _tekan(['enter', 'enter', 'enter', 'enter']) 
         
         return {"status": "success", "message": "DOSBox started and initialized to Gender screen"}
 
@@ -466,35 +546,113 @@ def run_dos_automation(gender, answers):
     
     # 1. Gender Input (L for Male / P for Female)
     gender_char = 'L' if gender == 'Male' else 'P'
-    pyautogui.press(gender_char)
+    _tekan(gender_char)
     
     # 2. Skip to Questions
-    pyautogui.press(['enter', 'enter', 'enter', 'enter', 'enter']) 
+    _tekan(['enter', 'enter', 'enter', 'enter', 'enter']) 
     time.sleep(4) 
     
     # 3. Answer Input
     chars = ['+' if x else '-' for x in answers]
     input_string = "".join(chars)
-    pyautogui.typewrite(input_string, interval=0.039) #originally 0.039
+    _ketik(input_string, interval=0.039) #originally 0.039
     time.sleep(0.3) 
+
+    # [PERBAIKAN AKURASI] VERIFIKASI INPUT: baca 566 jawaban yang tampil di layar isian MMPI.EXE
+    # dan cocokkan dengan jawaban yang seharusnya. Hasil dicek setelah alur selesai (lihat api_process_mmpi).
+    global _verifikasi_input
+    _verifikasi_input = None
+    if _metode_baca() == "grid":
+        try:
+            import importlib, baca_layar
+            importlib.reload(baca_layar)
+            # Kursor MMPI.EXE berkedip di butir 1: tanda di sel itu kadang tak terlihat saat dipotret.
+            # Potret ulang (maks. 4x) dan gabungkan sampai semua 566 tanda terbaca.
+            terbaca = None
+            for _ in range(4):
+                capture_dos_result(dos_win, "temp_jawaban.png")
+                s_baru = baca_layar.baca_jawaban(Image.open("debug_00_dos_720x400.png"), _urutan_grid())
+                terbaca = s_baru if terbaca is None else "".join(g if g != "?" else x for g, x in zip(terbaca, s_baru))
+                if "?" not in terbaca:
+                    break
+                time.sleep(0.35)
+            beda = [i + 1 for i, (x, y) in enumerate(zip(terbaca, input_string)) if x != y]
+            _verifikasi_input = {"cocok": not beda, "jumlah_beda": len(beda), "butir_beda": beda[:30]}
+        except Exception as e:
+            _verifikasi_input = {"cocok": False, "jumlah_beda": None, "galat": str(e)}
     
     # 4. Finish & Show Result
-    pyautogui.press('esc')
-    time.sleep(0.3) 
+    _tekan('esc')
+    time.sleep(_kalibrasi()[1])  # [PERBAIKAN AKURASI] beri waktu layar hasil tampil penuh (0.3 dtk terlalu cepat di laptop ini)
     
     # Capture results
     screenshot_filename = "temp_screen.png"
-    region = (dos_win.left+12, dos_win.top+160, dos_win.width-35, dos_win.height-185)
-    pyautogui.screenshot(screenshot_filename, region=region)
+    capture_dos_result(dos_win, screenshot_filename)
 
-    pyautogui.press('esc') # Go out from scoring sheet 
+    _tekan('esc') # Go out from scoring sheet 
 
     # Go back to Gender Field
-    pyautogui.press('enter')
+    _tekan('enter')
     time.sleep(0.1)
-    pyautogui.press(['enter', 'enter', 'enter', 'enter'])
+    _tekan(['enter', 'enter', 'enter', 'enter'])
 
     return screenshot_filename
+
+# [PERBAIKAN AKURASI] Pengambilan gambar layar hasil yang tidak bergantung ukuran jendela / skala layar.
+# Isi jendela DOSBox-X (layar DOS 80x25, font 9x16 = 720x400) dinormalkan ke 720x400, lalu dipotong
+# dengan bingkai yang setara potongan asli (left+12, top+160, width-35, height-185) pada laptop pembuat project.
+# Bingkai bisa diubah tanpa restart lewat file kalibrasi_ocr.json: {"crop_720": [x0, y0, x1, y1], "tunggu_hasil_detik": 2.0}
+RESULT_WAIT_S = 2.0
+CROP_720 = (-8, 97, 763, 384)
+
+def _kalibrasi():
+    import json
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "kalibrasi_ocr.json")) as f:
+            k = json.load(f)
+        return tuple(k.get("crop_720", CROP_720)), float(k.get("tunggu_hasil_detik", RESULT_WAIT_S))
+    except Exception:
+        return CROP_720, RESULT_WAIT_S
+
+_verifikasi_input = None
+
+def _urutan_grid():
+    import json
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "kalibrasi_ocr.json")) as f:
+            return json.load(f).get("urutan_grid_jawaban", "kolom")
+    except Exception:
+        return "kolom"
+
+def _metode_baca():
+    """'grid' = pembaca grid-karakter baru (baca_layar.py); 'tesseract' = OCR asli buatan pengembang sebelumnya."""
+    import json
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "kalibrasi_ocr.json")) as f:
+            return json.load(f).get("metode_baca", "grid")
+    except Exception:
+        return "grid"
+
+def capture_dos_result(dos_win, path):
+    hwnd = dos_win._hWnd
+    rc = wintypes.RECT()
+    ctypes.windll.user32.GetClientRect(hwnd, ctypes.byref(rc))
+    pt = wintypes.POINT(0, 0)
+    ctypes.windll.user32.ClientToScreen(hwnd, ctypes.byref(pt))
+    w, h = rc.right - rc.left, rc.bottom - rc.top
+    img = pyautogui.screenshot(region=(pt.x, pt.y, w, h))
+    img.save("debug_00_client_raw.png")
+    disp_h = int(round(w * 400 / 720))
+    top = h - disp_h if h > disp_h + 4 else 0      # buang bilah menu bila ikut terpotret
+    disp = img.crop((0, top, w, h)).resize((720, 400), Image.LANCZOS)
+    disp.save("debug_00_dos_720x400.png")
+    os.makedirs("arsip_layar", exist_ok=True)
+    disp.save(os.path.join("arsip_layar", time.strftime("%Y%m%d_%H%M%S") + ".png"))
+    (x0, y0, x1, y1), _ = _kalibrasi()
+    canvas = Image.new("RGB", (x1 - x0, y1 - y0), (0, 0, 0))
+    canvas.paste(disp.crop((max(0, x0), max(0, y0), min(720, x1), min(400, y1))), (max(0, -x0), max(0, -y0)))
+    canvas.save(path)
+
 
 # --- PART 3: API ENDPOINT ---
 class MmpiInput(BaseModel):
@@ -510,6 +668,22 @@ def api_process_mmpi(data: MmpiInput):
         # 1. Run Bot (Uses persistent session)
         screen_path = run_dos_automation(data.gender, data.answers)
         
+        metode = _metode_baca()
+        print(f"[PERBAIKAN AKURASI] metode baca layar: {metode}")
+        if metode == "grid":
+            # [PERBAIKAN AKURASI] Pembaca baru: baca angka per sel karakter DOS (80x25) dengan pola huruf DOS. Tanpa Tesseract.
+            import importlib, baca_layar
+            importlib.reload(baca_layar)
+            pola = baca_layar.muat_pola(os.path.join(os.path.dirname(os.path.abspath(__file__)), "pola_angka_dos.npz"))
+            hasil = baca_layar.baca_hasil(Image.open("debug_00_dos_720x400.png"), pola)
+            scores = {k: ({"raw": v["raw"], "t": v["t"]} if isinstance(v, dict) else v)
+                      for k, v in hasil.items() if k != "?"}
+            print(f"[PERBAIKAN AKURASI] verifikasi input: {_verifikasi_input}")
+            if not _verifikasi_input or not _verifikasi_input.get("cocok"):
+                raise Exception(f"VERIFIKASI INPUT GAGAL: jawaban yang terlihat di MMPI.EXE tidak sama dengan jawaban peserta {_verifikasi_input}")
+            return {"status": "success", "scores": scores, "metode": "grid",
+                    "verifikasi_input": _verifikasi_input, "raw_text_debug": {"grid": hasil}}
+
         # 2. Run Vision (now returns 3 images)
         clinical_img, research_img, full_img = process_screenshot_for_ocr(screen_path)
         
@@ -523,10 +697,14 @@ def api_process_mmpi(data: MmpiInput):
         
         # 4. Parse scores
         scores = parse_dos_output(combined_text)
+        # [PERBAIKAN AKURASI] Jangan laporkan "sukses" kalau tidak ada satu pun angka terbaca
+        if not any(k in scores for k in ("L", "F", "K")):
+            raise Exception("OCR tidak menemukan skor di layar hasil (lihat debug_00_*.png)")
         
         return {
             "status": "success",
             "scores": scores,
+            "metode": "tesseract",
             "raw_text_debug": {
                 "clinical": clinical_text,
                 "research": research_text,

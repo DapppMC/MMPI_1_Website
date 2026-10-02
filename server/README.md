@@ -78,7 +78,7 @@ You can use the provided dummy script to send answers to the server and see the 
 
 - **DOSBox window not found**: Make sure DOSBox-X launches correctly and the window title is exactly "DOSBox" or contains it.
 - **Tesseract Not Found**: Check if `tesseract.exe` is actually at `C:\Program Files\Tesseract-OCR\tesseract.exe`.
-- **OCR Accuracy Issues**: The server is calibrated for specific screen geometry. If you change DOSBox resolution or window size, OCR might fail. Keep the default `dosbox.conf` settings.
+- **OCR Accuracy Issues**: With the grid reader (default, see below) the capture is normalised to the 80x25 DOS text grid, so window size and Windows display scaling no longer matter. The legacy Tesseract path is still calibrated for one specific screen geometry.
 
 ---
 
@@ -92,4 +92,36 @@ You can use the provided dummy script to send answers to the server and see the 
     - Update the `gender` field in the `payload` dictionary within `request_dummy.py` (e.g., `"Male"` or `"Female"`).
 
 3.  **DOSBox Configuration**:
-    - **Crucial**: Open `dosbox.conf` and ensure the `mount` paths match the actual folder addresses on your specific PC. The automation relies on these paths being correct.
+    - The `MOUNT` path in `dosbox.conf` now uses the placeholder `{MMPI_DIR}`, which `server.py` fills in automatically with `server/vDosMMPI/MMPI2007` on the current PC (written to `dosbox_runtime.conf`). No manual path editing is needed anymore.
+
+
+---
+
+## Perbaikan Akurasi & Keandalan (Oktober 2026)
+
+Ditambahkan oleh Ahmad Dafa di atas karya tim pengembang sebelumnya. Rincian lengkap: `../CHANGELOG.md`
+dan laporan `../pengujian_akurasi/Laporan_Uji_Akurasi_MMPI_Web_vs_DOS.pdf`.
+
+| Bagian | Perubahan |
+|---|---|
+| Bot Logic | DOSBox-X dijalankan dengan `-nopromptfolder` + folder kerja pasti; **pengaman fokus**: jendela DOSBox-X dicari dari PID prosesnya dan diperiksa sebelum setiap tombol, kalau bukan DOSBox-X maka berhenti tanpa mengetik |
+| Vision Engine | proses DPI-aware; hanya isi jendela DOSBox-X yang dipotret lalu dinormalkan ke 720x400; jeda 2 dtk setelah Esc |
+| Pembaca grid (`baca_layar.py`) | membaca angka per sel karakter DOS (80x25) dengan pola huruf DOS (`pola_angka_dos.npz`), tanpa Tesseract; berhenti bila ragu |
+| Verifikasi input | sebelum Esc, 566 tanda `+`/`-` di layar isian MMPI.EXE dibaca dan dicocokkan dengan jawaban peserta; beda satu saja = ditolak |
+| Gagal = gagal | bila tidak ada skor terbaca atau verifikasi gagal, server mengembalikan error (sebelumnya `{}` tersimpan sebagai sukses) |
+
+Pengaturan di `kalibrasi_ocr.json` (dibaca tanpa restart):
+
+```json
+{"metode_baca": "grid", "crop_720": [-8, 97, 763, 384], "tunggu_hasil_detik": 2.0, "urutan_grid_jawaban": "kolom"}
+```
+
+`"metode_baca": "tesseract"` mengembalikan pembaca OCR lama (untuk perbandingan).
+
+Jalankan server agar bisa dipanggil dari Docker:
+
+```bash
+uvicorn server:app --host 0.0.0.0 --port 8000
+```
+
+Selama penilaian, DOSBox-X harus bisa tampil di depan; jangan memakai keyboard/mouse.
