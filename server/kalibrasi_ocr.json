@@ -1,0 +1,11 @@
+{
+ "metode_baca": "grid",
+ "crop_720": [
+  -8,
+  97,
+  763,
+  384
+ ],
+ "tunggu_hasil_detik": 2.0,
+ "urutan_grid_jawaban": "kolom"
+}
